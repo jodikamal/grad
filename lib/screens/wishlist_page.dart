@@ -1,19 +1,34 @@
 import 'package:flutter/material.dart';
 
-class WishlistPage extends StatelessWidget {
+class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final wishlistItems = List.generate(
-      5,
-      (index) => {
-        'title': 'Stylish Jacket $index',
-        'price': '\$49.99',
-        'image': 'assets/images/homepage.png',
-      },
-    );
+  State<WishlistPage> createState() => _WishlistPageState();
+}
 
+class _WishlistPageState extends State<WishlistPage> {
+  List<Map<String, String>> wishlistItems = List.generate(
+    5,
+    (index) => {
+      'title': 'Stylish Jacket $index',
+      'price': '\$49.99',
+      'image': 'assets/images/homepage.png',
+    },
+  );
+
+  void _removeFromWishlist(int index) {
+    setState(() {
+      wishlistItems.removeAt(index);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Item removed from wishlist 💔")),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -65,9 +80,7 @@ class WishlistPage extends StatelessWidget {
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.favorite, color: Colors.purple),
-                        onPressed: () {
-                          // احذف من الwishlist
-                        },
+                        onPressed: () => _removeFromWishlist(index),
                       ),
                     ),
                   );

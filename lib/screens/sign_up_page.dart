@@ -1,7 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart'; // استيراد Firebase Authentication
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'sign_in_page.dart'; // تأكد من استيراد صفحة تسجيل الدخول
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'sign_in_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -12,9 +14,13 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage>
     with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _addressController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _fadeInAnimation;
@@ -35,29 +41,106 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _addressController.dispose();
+    _phoneController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  // دالة التسجيل باستخدام Firebase
   Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
+      final firstName = _nameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final address = _addressController.text.trim();
+      final phone = _phoneController.text.trim();
+      final userType =
+          'user'; // هنا ممكن تغيرها بناءً على الـ userType اللي بدك إياه
+
+      // أولًا، نسجل في Firebase
       try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+
+        // ثم بعد ما نخلص من Firebase، نسجل البيانات في MySQL (Backend)
+        await signupToDatabase(
+          firstName,
+          email,
+          password,
+          address,
+          phone,
+          userType,
         );
+
+        // إذا نجحت كل العمليات، نقوم بتوجيه المستخدم إلى صفحة التحقق من البريد الإلكتروني
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully')),
         );
-        // الانتقال للصفحة الرئيسية بعد إنشاء الحساب
+
+        // تنقل إلى صفحة التحقق من البريد الإلكتروني
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SignInPage()),
+        );
+      } on FirebaseAuthException catch (e) {
+        String errorMessage = '';
+        if (e.code == 'weak-password') {
+          errorMessage = 'كلمة السر ضعيفة.';
+        } else if (e.code == 'email-already-in-use') {
+          errorMessage = 'البريد الإلكتروني مستخدم بالفعل.';
+        } else {
+          errorMessage = e.message ?? 'حدث خطأ.';
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       } catch (e) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
+    }
+  }
+
+  Future<void> signupToDatabase(
+    String firstName,
+    String email,
+    String password,
+    String address,
+    String phone,
+    String userType,
+  ) async {
+    final url = Uri.parse(
+      'http://192.168.88.9:3000/signup',
+    ); // تأكد من صحة الـ URL
+    try {
+      final response = await http.post(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'first_name': firstName,
+          'email': email,
+          'password': password,
+          'address': address,
+          'phone_number': phone,
+          'user_type': userType,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('User added to database successfully');
+      } else {
+        throw Exception('Failed to add user to database');
+      }
+    } catch (e) {
+      print('Error: $e');
+      throw Exception('Error connecting to server');
     }
   }
 
@@ -84,15 +167,23 @@ class _SignUpPageState extends State<SignUpPage>
                       color: Colors.deepPurple,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Join Glamzy and enjoy the experience!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.deepPurple[300],
-                    ),
-                  ),
                   const SizedBox(height: 32),
+
+                  // Name
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter your name'
+                                : null,
+                  ),
+                  const SizedBox(height: 16),
 
                   // Email
                   TextFormField(
@@ -102,14 +193,13 @@ class _SignUpPageState extends State<SignUpPage>
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter your email'
+                                : null,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Password
                   TextFormField(
@@ -120,12 +210,44 @@ class _SignUpPageState extends State<SignUpPage>
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.lock_outline),
                     ),
-                    validator: (value) {
-                      if (value == null || value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            value != null && value.length < 6
+                                ? 'Password must be at least 6 characters'
+                                : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Address
+                  TextFormField(
+                    controller: _addressController,
+                    decoration: const InputDecoration(
+                      labelText: 'Address',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.home_outlined),
+                    ),
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter your address'
+                                : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Phone
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Enter your phone number'
+                                : null,
                   ),
 
                   const SizedBox(height: 24),
@@ -144,8 +266,6 @@ class _SignUpPageState extends State<SignUpPage>
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // الزر للرجوع إلى صفحة تسجيل الدخول
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacement(

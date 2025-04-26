@@ -1,8 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart'; // استيراد Firebase Authentication
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/MainNavigation.dart';
+import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
-import 'sign_up_page.dart'; // تأكد من استيراد الصفحة
-import 'forgot_password.dart'; // تأكد من استيراد الصفحة
+import 'sign_up_page.dart';
+import 'forgot_password.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -42,23 +44,51 @@ class _SignInPageState extends State<SignInPage>
     super.dispose();
   }
 
-  // دالة تسجيل الدخول
-  Future<void> _handleSignIn() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+  Future<void> loginnn(String email, String password) async {
+    print("hello1");
+    print(email);
+    print(password);
+
+    final url = Uri.parse('http://192.168.88.9:3000/login');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      print("response: ${response.body}");
+
+      if (response.statusCode == 200) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Successfully logged in')));
-        // الانتقال للصفحة الرئيسية بعد تسجيل الدخول بنجاح
-      } catch (e) {
-        ScaffoldMessenger.of(
+        TODO:
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+          MaterialPageRoute(builder: (_) => HomeScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: ${response.body}')),
+        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    }
+  }
+
+  Future<void> _handleSignIn() async {
+    if (_formKey.currentState!.validate()) {
+      await loginnn(_emailController.text, _passwordController.text);
     }
   }
 
@@ -94,8 +124,6 @@ class _SignInPageState extends State<SignInPage>
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Email Field
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -111,8 +139,6 @@ class _SignInPageState extends State<SignInPage>
                     },
                   ),
                   const SizedBox(height: 20),
-
-                  // Password Field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
@@ -128,7 +154,6 @@ class _SignInPageState extends State<SignInPage>
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 20),
                   Align(
                     alignment: Alignment.centerRight,
@@ -144,7 +169,6 @@ class _SignInPageState extends State<SignInPage>
                       child: const Text('Forgot Password?'),
                     ),
                   ),
-
                   ElevatedButton(
                     onPressed: _handleSignIn,
                     style: ElevatedButton.styleFrom(
@@ -159,10 +183,7 @@ class _SignInPageState extends State<SignInPage>
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Don't have an account? Sign up
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

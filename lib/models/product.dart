@@ -1,4 +1,3 @@
-// models/product.dart
 class Product {
   final String name;
   final String imagePath;

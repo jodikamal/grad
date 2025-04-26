@@ -60,6 +60,9 @@ class _AccessoriesSectionState extends State<AccessoriesSection>
     ),
   ];
 
+  // نقوم بتخزين حالة المفضلة هنا
+  Map<String, bool> favorites = {};
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +148,10 @@ class _AccessoriesSectionState extends State<AccessoriesSection>
         ),
         itemBuilder: (context, index) {
           final product = products[index];
+
+          // الحصول على حالة المفضلة
+          bool isFavorite = favorites[product.name] ?? false;
+
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -163,16 +170,48 @@ class _AccessoriesSectionState extends State<AccessoriesSection>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    child: Image.asset(
-                      product.imagePath,
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: Image.asset(
+                          product.imagePath,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              // تغيير حالة المفضلة
+                              favorites[product.name] = !isFavorite;
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white70,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isFavorite ? Colors.red : Colors.purple,
+                              ),
+                              iconSize: 20,
+                              onPressed: null, // لا داعي هنا لإضافة أي شيء
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),

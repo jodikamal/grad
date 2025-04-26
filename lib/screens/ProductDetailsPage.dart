@@ -1,5 +1,6 @@
 // screens/product_details_page.dart
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/CreateDesignPage.dart';
 import '../models/product.dart';
 import 'package:graduation/ar_glasses_tryon.dart';
 
@@ -130,12 +131,18 @@ class ProductDetailsPage extends StatelessWidget {
               Center(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/create-design');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => CreateDesignPage(product: product),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.brush),
                   label: const Text("Create Your Design"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
+                    backgroundColor: const Color.fromARGB(255, 136, 127, 137),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 30,
                       vertical: 15,

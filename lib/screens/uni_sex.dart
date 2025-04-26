@@ -11,6 +11,7 @@ class UniSexSection extends StatelessWidget {
     {'name': 'Hoodie - Yellow', 'image': 'assets/images/h-y.png'},
     {'name': 'Hoodie - White', 'image': 'assets/images/h-w.png'},
     {'name': 'Hoodie - Black', 'image': 'assets/images/h-b.png'},
+    {'name': 'Hoodie - Green', 'image': 'assets/images/h-g.png'},
     {'name': 'Hoodie - Blue', 'image': 'assets/images/h-bl.png'},
     {'name': 'Hoodie - White/Gray', 'image': 'assets/images/h-wh.png'},
     {'name': 'Hoodie - Pink', 'image': 'assets/images/h-p.png'},
@@ -18,6 +19,9 @@ class UniSexSection extends StatelessWidget {
     {'name': 'T-Shirt - Red', 'image': 'assets/images/t-r.png'},
     {'name': 'T-Shirt - Green', 'image': 'assets/images/t-g.png'},
     {'name': 'T-Shirt - Blue', 'image': 'assets/images/t-b.png'},
+    {'name': 'T-Shirt - Yellow', 'image': 'assets/images/t-y.png'},
+    {'name': 'T-Shirt - White', 'image': 'assets/images/t-w.png'},
+    {'name': 'T-Shirt - DarkBlue', 'image': 'assets/images/t-db.png'},
   ];
 
   @override

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:graduation/models/product.dart'; // استيراد الكلاس Product
+import 'package:graduation/models/product.dart';
 
 class CreateDesignPage extends StatefulWidget {
-  final Product product; // المنتج المختار
+  final Product product;
 
   const CreateDesignPage({super.key, required this.product});
 
@@ -11,7 +11,7 @@ class CreateDesignPage extends StatefulWidget {
 }
 
 class _CreateDesignPageState extends State<CreateDesignPage> {
-  Offset stickerPosition = Offset(150, 250);
+  Offset stickerPosition = const Offset(150, 250);
   double stickerScale = 1.0;
   double stickerRotation = 0.0;
   String? selectedSticker;
@@ -23,7 +23,48 @@ class _CreateDesignPageState extends State<CreateDesignPage> {
     'assets/images/st4.png',
     'assets/images/st5.png',
     'assets/images/st6.png',
+    'assets/images/st7.png',
   ];
+
+  void _adjustScale(double value) {
+    setState(() {
+      stickerScale += value;
+      if (stickerScale < 0.5) stickerScale = 0.5;
+      if (stickerScale > 3.0) stickerScale = 3.0;
+    });
+  }
+
+  void _rotateStickerRight() {
+    setState(() {
+      stickerRotation += 0.1;
+    });
+  }
+
+  void _rotateStickerLeft() {
+    setState(() {
+      stickerRotation -= 0.1;
+    });
+  }
+
+  void _addToCart() {
+    if (selectedSticker == null) return;
+
+    print('Added to cart: ${widget.product.name}');
+    print('Sticker: $selectedSticker');
+    print('Position: $stickerPosition');
+    print('Scale: $stickerScale');
+    print('Rotation: $stickerRotation');
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Design added to cart!")));
+  }
+
+  void _removeSticker() {
+    setState(() {
+      selectedSticker = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +77,23 @@ class _CreateDesignPageState extends State<CreateDesignPage> {
       body: Stack(
         children: [
           Center(
-            child: Image.asset(
-              widget.product.imagePath, // عرض صورة المنتج المختار
-              width: 300,
-              fit: BoxFit.cover,
+            child: Stack(
+              children: [
+                Image.asset(
+                  widget.product.imagePath,
+                  width: 300,
+                  fit: BoxFit.cover,
+                ),
+                if (selectedSticker != null)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: _removeSticker,
+                    ),
+                  ),
+              ],
             ),
           ),
           if (selectedSticker != null)
@@ -52,12 +106,6 @@ class _CreateDesignPageState extends State<CreateDesignPage> {
                     stickerPosition += details.delta;
                   });
                 },
-                onScaleUpdate: (details) {
-                  setState(() {
-                    stickerScale = details.scale;
-                    stickerRotation = details.rotation;
-                  });
-                },
                 child: Transform.rotate(
                   angle: stickerRotation,
                   child: Transform.scale(
@@ -67,43 +115,86 @@ class _CreateDesignPageState extends State<CreateDesignPage> {
                 ),
               ),
             ),
+
+          // Buttons
+          Positioned(
+            bottom: 100,
+            left: 20,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.zoom_in, color: Colors.purple),
+                  onPressed: () => _adjustScale(0.1),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.zoom_out, color: Colors.purple),
+                  onPressed: () => _adjustScale(-0.1),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.rotate_left, color: Colors.purple),
+                  onPressed: _rotateStickerLeft,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.rotate_right, color: Colors.purple),
+                  onPressed: _rotateStickerRight,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-      bottomNavigationBar: SizedBox(
-        height: 100,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(8.0),
-          itemCount: stickers.length,
-          itemBuilder: (context, index) {
-            final sticker = stickers[index];
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedSticker = sticker;
-                  stickerPosition = Offset(150, 250);
-                  stickerScale = 1.0;
-                  stickerRotation = 0.0;
-                });
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                padding: const EdgeInsets.all(4.0),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color:
-                        selectedSticker == sticker
-                            ? Colors.purple
-                            : Colors.grey,
-                    width: 2,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 140,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: stickers.length,
+              itemBuilder: (context, index) {
+                final sticker = stickers[index];
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedSticker = sticker;
+                      stickerPosition = const Offset(150, 250);
+                      stickerScale = 1.0;
+                      stickerRotation = 0.0;
+                    });
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: const EdgeInsets.all(6.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color:
+                            selectedSticker == sticker
+                                ? Colors.purple
+                                : Colors.grey,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Image.asset(sticker, width: 70),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Image.asset(sticker, width: 60),
+                );
+              },
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            color: Colors.purple,
+            child: TextButton.icon(
+              onPressed: _addToCart,
+              icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
+              label: const Text(
+                "Add to Cart",
+                style: TextStyle(color: Colors.white),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
