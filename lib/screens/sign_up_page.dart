@@ -109,7 +109,7 @@ class _SignUpPageState extends State<SignUpPage>
     print(address);
     print(phone);
 
-    var url = Uri.parse('http://192.168.88.9:3000/signup'); // تأكد ال IP صح
+    var url = Uri.parse('http://192.168.88.10:3000/signup'); // تأكد ال IP صح
     var response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},

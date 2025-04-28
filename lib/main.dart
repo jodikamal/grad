@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
-//import 'screens/HomePage.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:graduation/notification_service.dart';
-import 'firebase_options.dart'; // استيراد ملف الإعدادات
+import 'firebase_options.dart'; // Import Firebase settings
 import 'screens/MainNavigation.dart';
 import 'screens/splash_screen.dart';
+import 'screens/sign_in_page.dart';
+import 'screens/forgot_password.dart';
+import 'screens/ResetPasswordPage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase
   await Firebase.initializeApp(
-    options:
-        DefaultFirebaseOptions
-            .currentPlatform, // تهيئة Firebase باستخدام الإعدادات الخاصة بالمنصة
+    options: DefaultFirebaseOptions.currentPlatform, // Firebase initialization
   );
+
+  // Optional: Wait a little for Firebase to be ready
+  await Future.delayed(const Duration(seconds: 2));
 
   runApp(const GlamzyApp());
 }
@@ -32,12 +36,14 @@ class GlamzyApp extends StatelessWidget {
       ),
       home: Builder(
         builder: (context) {
-          // This ensures we have a context after the MaterialApp is built
+          // Initialize notification service
           NotificationService.init(context);
-          return SplashScreen();
+          return const SplashScreen(); // Initial screen
         },
       ),
-      locale: const Locale('en', 'US'),
+      locale: const Locale('en', 'US'), // Set the default locale
+
+      // إضافة المسارات هنا
     );
   }
 }

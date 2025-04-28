@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart'; // استيراد Firebase Authentication
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -12,22 +12,40 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
-  // دالة إرسال رابط استعادة كلمة المرور
   Future<void> _sendPasswordResetEmail() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
       try {
         await FirebaseAuth.instance.sendPasswordResetEmail(
-          email: _emailController.text,
+          email: _emailController.text.trim(),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset link sent')),
+          const SnackBar(
+            content: Text('Password reset link sent!'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context); // العودة إلى صفحة تسجيل الدخول بعد إرسال الرابط
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        Navigator.pop(context);
+      } on FirebaseAuthException catch (e) {
+        String errorMessage;
+        if (e.code == 'user-not-found') {
+          errorMessage = 'No user found for that email.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'The email address is invalid.';
+        } else {
+          errorMessage = 'Something went wrong. Please try again.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -56,14 +74,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Enter your email address and we will send you a link to reset your password.',
+                  textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     color: Colors.deepPurple[300],
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Email Field
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -78,24 +95,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _sendPasswordResetEmail,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                _isLoading
+                    ? const CircularProgressIndicator(color: Colors.deepPurple)
+                    : ElevatedButton(
+                      onPressed: _sendPasswordResetEmail,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Send Reset Link',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Send Reset Link',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
                 const SizedBox(height: 20),
-                // العودة إلى صفحة تسجيل الدخول
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
