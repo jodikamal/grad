@@ -1,7 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'sign_in_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -52,35 +52,25 @@ class _SignUpPageState extends State<SignUpPage>
 
   Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
-      final firstName = _nameController.text.trim();
+      final name = _nameController.text.trim();
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
       final address = _addressController.text.trim();
       final phone = _phoneController.text.trim();
-      final userType =
-          'user'; // هنا ممكن تغيرها بناءً على الـ userType اللي بدك إياه
+      final userType = 'user';
 
-      // أولًا، نسجل في Firebase
       try {
+        await signupToDatabase(name, email, password, address, phone);
+        // أولاً، تسجيل المستخدم في Firebase
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: password);
 
-        // ثم بعد ما نخلص من Firebase، نسجل البيانات في MySQL (Backend)
-        await signupToDatabase(
-          firstName,
-          email,
-          password,
-          address,
-          phone,
-          userType,
-        );
-
-        // إذا نجحت كل العمليات، نقوم بتوجيه المستخدم إلى صفحة التحقق من البريد الإلكتروني
+        // إذا تم التسجيل بنجاح في كل من Firebase وMySQL، نقوم بتوجيه المستخدم إلى صفحة تسجيل الدخول
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully')),
         );
 
-        // تنقل إلى صفحة التحقق من البريد الإلكتروني
+        // التنقل إلى صفحة تسجيل الدخول بعد نجاح التسجيل
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const SignInPage()),
@@ -88,11 +78,11 @@ class _SignUpPageState extends State<SignUpPage>
       } on FirebaseAuthException catch (e) {
         String errorMessage = '';
         if (e.code == 'weak-password') {
-          errorMessage = 'كلمة السر ضعيفة.';
+          errorMessage = 'Password is too weak';
         } else if (e.code == 'email-already-in-use') {
-          errorMessage = 'البريد الإلكتروني مستخدم بالفعل.';
+          errorMessage = 'Email is already in use';
         } else {
-          errorMessage = e.message ?? 'حدث خطأ.';
+          errorMessage = e.message ?? 'Something went wrong';
         }
 
         ScaffoldMessenger.of(
@@ -107,40 +97,37 @@ class _SignUpPageState extends State<SignUpPage>
   }
 
   Future<void> signupToDatabase(
-    String firstName,
+    String name,
     String email,
     String password,
     String address,
     String phone,
-    String userType,
   ) async {
-    final url = Uri.parse(
-      'http://192.168.88.9:3000/signup',
-    ); // تأكد من صحة الـ URL
-    try {
-      final response = await http.post(
-        url,
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(<String, String>{
-          'first_name': firstName,
-          'email': email,
-          'password': password,
-          'address': address,
-          'phone_number': phone,
-          'user_type': userType,
-        }),
-      );
+    print(name);
+    print(email);
+    print(password);
+    print(address);
+    print(phone);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('User added to database successfully');
-      } else {
-        throw Exception('Failed to add user to database');
-      }
-    } catch (e) {
-      print('Error: $e');
-      throw Exception('Error connecting to server');
+    var url = Uri.parse('http://192.168.88.9:3000/signup'); // تأكد ال IP صح
+    var response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        'address': address,
+        'phone': phone,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Signed up in MySQL successfully');
+    } else {
+      var responseData = jsonDecode(response.body);
+      print('Failed to signup to MySQL: ${responseData['message']}');
+      throw Exception('Failed to signup to MySQL');
     }
   }
 
