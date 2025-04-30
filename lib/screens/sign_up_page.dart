@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:graduation/screens/ipadress.dart';
 import 'package:http/http.dart' as http;
 import 'sign_in_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -61,16 +62,14 @@ class _SignUpPageState extends State<SignUpPage>
 
       try {
         await signupToDatabase(name, email, password, address, phone);
-        // أولاً، تسجيل المستخدم في Firebase
+
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: password);
 
-        // إذا تم التسجيل بنجاح في كل من Firebase وMySQL، نقوم بتوجيه المستخدم إلى صفحة تسجيل الدخول
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully')),
         );
 
-        // التنقل إلى صفحة تسجيل الدخول بعد نجاح التسجيل
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const SignInPage()),
@@ -84,14 +83,6 @@ class _SignUpPageState extends State<SignUpPage>
         } else {
           errorMessage = e.message ?? 'Something went wrong';
         }
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMessage)));
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -109,7 +100,7 @@ class _SignUpPageState extends State<SignUpPage>
     print(address);
     print(phone);
 
-    var url = Uri.parse('http://192.168.88.7:3000/signup');
+    var url = Uri.parse('http://$ip:3000/signup');
     var response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},

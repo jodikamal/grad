@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:graduation/notification_service.dart';
 import 'firebase_options.dart'; // Import Firebase settings
-import 'screens/MainNavigation.dart';
 import 'screens/splash_screen.dart';
 
 Future<void> main() async {

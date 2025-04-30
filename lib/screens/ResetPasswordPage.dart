@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:graduation/screens/ipadress.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../screens/sign_in_page.dart';
 import '../screens/forgot_password.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+//import 'package:flutter/foundation.dart' show kIsWeb;
 
 class NewPass extends StatefulWidget {
   @override
@@ -252,7 +253,7 @@ class NewPassword extends State<NewPass> {
     );
     try {
       final response = await http.put(
-        Uri.parse('http://192.168.88.7:3000/resetPassword'),
+        Uri.parse('http://$ip:3000/resetPassword'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

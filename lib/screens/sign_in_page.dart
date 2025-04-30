@@ -7,6 +7,7 @@ import 'sign_up_page.dart';
 import 'forgot_password.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'ipadress.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
@@ -33,7 +34,7 @@ class _SignInPageState extends State<SignInPage> {
       print('🔵 Step 1: Sending request to Node.js server...');
 
       final serverResponse = await http.post(
-        Uri.parse('http://192.168.88.7:3000/login'),
+        Uri.parse('http://$ip:3000/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
