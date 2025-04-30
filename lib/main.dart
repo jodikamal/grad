@@ -4,9 +4,6 @@ import 'package:graduation/notification_service.dart';
 import 'firebase_options.dart'; // Import Firebase settings
 import 'screens/MainNavigation.dart';
 import 'screens/splash_screen.dart';
-import 'screens/sign_in_page.dart';
-import 'screens/forgot_password.dart';
-import 'screens/ResetPasswordPage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +39,6 @@ class GlamzyApp extends StatelessWidget {
         },
       ),
       locale: const Locale('en', 'US'), // Set the default locale
-
       // إضافة المسارات هنا
     );
   }

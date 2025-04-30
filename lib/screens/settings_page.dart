@@ -3,6 +3,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'profile_page.dart';
 import 'change_passApp.dart';
 import 'about_us_page.dart';
+import 'sign_in_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -106,8 +107,10 @@ class SettingsPage extends StatelessWidget {
             icon: Feather.log_out,
             title: 'Log Out',
             onTap: () {
-              // TODO: Handle log out logic
-              Navigator.popUntil(context, (route) => route.isFirst);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SignInPage()),
+              );
             },
           ),
         ],

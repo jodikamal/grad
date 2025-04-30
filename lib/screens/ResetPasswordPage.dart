@@ -1,143 +1,288 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../screens/sign_in_page.dart';
+import '../screens/forgot_password.dart';
 
-class ResetPasswordPage extends StatefulWidget {
-  final String email;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-  const ResetPasswordPage({super.key, required this.email});
-
+class NewPass extends StatefulWidget {
   @override
-  _ResetPasswordPageState createState() => _ResetPasswordPageState();
+  NewPassword createState() => NewPassword();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  bool _isLoading = false;
-  String? _errorMessage;
+class NewPassword extends State<NewPass> {
+  bool valpass = false;
+  TextEditingController passwordController1 = TextEditingController();
+  TextEditingController passwordController2 = TextEditingController();
+  var currentUser = FirebaseAuth.instance.currentUser;
+
   bool _obscurePassword = true;
 
-  void _togglePasswordVisibility() {
+  void togglePasswordVisibility() {
     setState(() {
       _obscurePassword = !_obscurePassword;
     });
   }
 
-  Future<void> _resetPassword() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Passwords do not match!")));
-      return;
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse('http://192.168.88.8/resetPassword'), // 🛑
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'email': widget.email,
-          'newPassword': _passwordController.text,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Your password has been successfully updated!'),
-          ),
-        );
-        Navigator.pushReplacementNamed(
-          context,
-          '/signIn',
-        ); // رجعه على صفحة تسجيل الدخول
-      } else {
-        final responseData = json.decode(response.body);
-        setState(() {
-          _isLoading = false;
-          _errorMessage = responseData['message'] ?? 'Unknown error';
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${_errorMessage!}')));
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = e.toString();
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${_errorMessage!}')));
-    }
-  }
+  GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset Password')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextFormField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Enter your new password',
-                hintText: 'New password',
-              ),
-              obscureText: _obscurePassword,
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          Positioned(
+            top: -230.0,
+            left: 0.0,
+            child: Image.asset(
+              'assets/images/glamzy_logo.png',
+              width: 400.0,
+              fit: BoxFit.fitWidth,
+              height: 700.0,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _confirmPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Confirm your password',
-                hintText: 'Confirm password',
-              ),
-              obscureText: _obscurePassword,
-            ),
-            const SizedBox(height: 16),
-            IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                color: Theme.of(context).primaryColorDark,
-              ),
-              onPressed: _togglePasswordVisibility,
-            ),
-            const SizedBox(height: 16),
-            if (_isLoading)
-              const CircularProgressIndicator()
-            else
-              ElevatedButton(
-                onPressed: _resetPassword,
-                child: const Text('Update Password'),
-              ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 20.0),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'New Password',
+                            style: TextStyle(
+                              color: Colors.purple, // اللون البنفسجي
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24.0,
+                            ),
+                          ),
+                          SizedBox(height: 7.0),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(
+                                color: Colors.purple.withOpacity(0.3),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: TextFormField(
+                              controller: passwordController1,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelStyle: TextStyle(color: Colors.purple),
+                                hintText: 'Enter your New Password',
+                                border: InputBorder.none,
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.8),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    color: Colors.purple,
+                                  ),
+                                  onPressed: togglePasswordVisibility,
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your password';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20.0),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Confirm Password',
+                            style: TextStyle(
+                              color: Colors.purple, // اللون البنفسجي
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24.0,
+                            ),
+                          ),
+                          SizedBox(height: 7.0),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(
+                                color: Colors.purple.withOpacity(0.3),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: TextFormField(
+                              controller: passwordController2,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelStyle: TextStyle(color: Colors.purple),
+                                hintText: 'Re-enter your password',
+                                border: InputBorder.none,
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.8),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    color: Colors.purple,
+                                  ),
+                                  onPressed: togglePasswordVisibility,
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Please confirm your password",
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (value != passwordController1.text) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Passwords do not match"),
+                                    ),
+                                  );
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20.0),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              if (passwordController1.text ==
+                                  passwordController2.text) {
+                                String email = ForgetPass.emailUser;
+
+                                await updatePassword(
+                                  email,
+                                  passwordController1.text,
+                                );
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SignInPage(),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Passwords do not match"),
+                                  ),
+                                );
+                              }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Please confirm your password"),
+                                ),
+                              );
+                            }
+                          },
+                          style: ButtonStyle(
+                            backgroundColor: MaterialStateProperty.all<Color>(
+                              Colors.purple, // اللون البنفسجي
+                            ),
+                            padding:
+                                MaterialStateProperty.all<EdgeInsetsGeometry>(
+                                  EdgeInsets.symmetric(
+                                    horizontal: 40.0,
+                                    vertical: 13.0,
+                                  ),
+                                ),
+                            shape: MaterialStateProperty.all<
+                              RoundedRectangleBorder
+                            >(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0),
+                                side: BorderSide(
+                                  color: Colors.white.withOpacity(0.5),
+                                  width: 1.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            'Update Password',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> updatePassword(String email, String newPassword) async {
+    print(
+      'Updating password for email: $email with new password: $newPassword',
+    );
+    try {
+      final response = await http.put(
+        Uri.parse('http://192.168.88.7:3000/resetPassword'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'email': email,
+          'newPassword': newPassword,
+        }),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Password updated successfully.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SignInPage()),
+        );
+      } else {
+        print('Failed to update password');
+      }
+    } catch (e) {
+      print('Exception: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update password. Please try again later.'),
+        ),
+      );
+    }
   }
 }

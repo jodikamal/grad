@@ -5,194 +5,176 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sign_up_page.dart';
 import 'forgot_password.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SignInPage extends StatefulWidget {
-  const SignInPage({super.key});
+  const SignInPage({Key? key}) : super(key: key);
 
   @override
   State<SignInPage> createState() => _SignInPageState();
 }
 
 class _SignInPageState extends State<SignInPage> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
   bool _isLoading = false;
-  String? _errorMessage;
 
-  Future<void> _loginWithFirebase(String email, String password) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     try {
-      // تسجيل الدخول
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: email.trim(),
-            password: password.trim(),
-          );
+      print('🔵 Step 1: Sending request to Node.js server...');
 
-      // قراءة بيانات المستخدم من Firestore
-      var userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .get();
-      if (userDoc.exists) {
-        print('User Data: ${userDoc.data()}');
-      } else {
-        print('User not found');
+      final serverResponse = await http.post(
+        Uri.parse('http://192.168.88.7:3000/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      print('🟢 Server response code: ${serverResponse.statusCode}');
+      print('🟢 Server response body: ${serverResponse.body}');
+
+      // **أضفينا هنا شرط على الـ statusCode**
+      if (serverResponse.statusCode != 200) {
+        // فكّري تعرضي رسالة الخطأ اللي رجعها السيرفر
+        final errorMsg =
+            jsonDecode(serverResponse.body)['message'] ?? 'فشل تسجيل الدخول';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        return; // مهم ترجعي عشان ما تكمّلي لباقي الكود
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Successfully logged in')));
+      // لو دخلنا هون معناها response.ok
+      final responseBody = jsonDecode(serverResponse.body);
 
+      print('✅ Step 4: Navigating to HomeScreen...');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login failed: ${_errorMessage ?? 'Unknown error'}'),
-        ),
-      );
+    } catch (e) {
+      print('❌ Error during login: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('cant reach server')));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50,
+      backgroundColor: Colors.deepPurple[50],
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
             child: Column(
               children: [
-                Image.asset('assets/images/glamzy_logo.png', height: 100),
-                const SizedBox(height: 16),
-                Text(
-                  'Welcome Back!',
-                  style: GoogleFonts.poppins(
+                // 1.
+                Image.asset(
+                  'assets/images/glamzy_logo.png', //
+                  height: 200, //
+                ),
+                const SizedBox(height: 30),
+
+                const Text(
+                  'Welcome Back to Glamzy!',
+                  style: TextStyle(
                     fontSize: 28,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Login to continue to Glamzy',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: Colors.deepPurple[300],
-                  ),
-                ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 30),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    return null;
-                  },
+                  keyboardType: TextInputType.emailAddress,
+                  validator:
+                      (value) =>
+                          value != null && value.contains('@')
+                              ? null
+                              : 'should use @',
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Password',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    return null;
+                  obscureText: true,
+                  validator:
+                      (value) =>
+                          value != null && value.length >= 6
+                              ? null
+                              : 'too short password',
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Forget Password
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ForgetPassword()),
+                    );
                   },
-                ),
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ForgotPasswordPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Forgot Password?'),
+                  child: Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: Colors.deepPurple),
                   ),
                 ),
+
+                // 3. زر Login
                 _isLoading
                     ? const CircularProgressIndicator()
                     : ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _loginWithFirebase(
-                            _emailController.text,
-                            _passwordController.text,
-                          );
-                        }
-                      },
+                      onPressed: _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
-                        minimumSize: const Size.fromHeight(50),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 50,
+                          vertical: 15,
+                        ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(30),
                         ),
                       ),
                       child: const Text(
-                        'Sign In',
-                        style: TextStyle(color: Colors.white),
+                        'Log In',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
+
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Don't have an account? ",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SignUpPage()),
-                        );
-                      },
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          color: Colors.deepPurple,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
+
+                // 4. Don't have an account? Sign UP
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => SignUpPage()),
+                    );
+                  },
+                  child: Text(
+                    "Don't have an account? Sign Up",
+                    style: TextStyle(color: Colors.deepPurple),
+                  ),
                 ),
               ],
             ),

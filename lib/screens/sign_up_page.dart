@@ -109,7 +109,7 @@ class _SignUpPageState extends State<SignUpPage>
     print(address);
     print(phone);
 
-    var url = Uri.parse('http://192.168.88.10:3000/signup'); // تأكد ال IP صح
+    var url = Uri.parse('http://192.168.88.7:3000/signup');
     var response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
@@ -124,6 +124,10 @@ class _SignUpPageState extends State<SignUpPage>
 
     if (response.statusCode == 200) {
       print('Signed up in MySQL successfully');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SignInPage()),
+      );
     } else {
       var responseData = jsonDecode(response.body);
       print('Failed to signup to MySQL: ${responseData['message']}');
