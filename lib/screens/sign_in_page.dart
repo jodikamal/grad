@@ -8,6 +8,7 @@ import 'forgot_password.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'ipadress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
@@ -20,6 +21,7 @@ class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLoading = false;
 
   Future<void> _signIn() async {
@@ -31,7 +33,7 @@ class _SignInPageState extends State<SignInPage> {
     final password = _passwordController.text.trim();
 
     try {
-      print('🔵 Step 1: Sending request to Node.js server...');
+      print(' Step 1: Sending request to Node.js server...');
 
       final serverResponse = await http.post(
         Uri.parse('http://$ip:3000/login'),
@@ -39,30 +41,33 @@ class _SignInPageState extends State<SignInPage> {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
-      print('🟢 Server response code: ${serverResponse.statusCode}');
-      print('🟢 Server response body: ${serverResponse.body}');
+      print(' Server response code: ${serverResponse.statusCode}');
+      print(' Server response body: ${serverResponse.body}');
 
       // **أضفينا هنا شرط على الـ statusCode**
       if (serverResponse.statusCode != 200) {
-        // فكّري تعرضي رسالة الخطأ اللي رجعها السيرفر
+        //
         final errorMsg =
-            jsonDecode(serverResponse.body)['message'] ?? 'فشل تسجيل الدخول';
+            jsonDecode(serverResponse.body)['message'] ?? 'cant login!';
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMsg)));
-        return; // مهم ترجعي عشان ما تكمّلي لباقي الكود
+        return; //
       }
 
-      // لو دخلنا هون معناها response.ok
+      // here it will be 200 -response.ok
       final responseBody = jsonDecode(serverResponse.body);
+      int userId = responseBody['user_id'];
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('userId', userId);
 
-      print('✅ Step 4: Navigating to HomeScreen...');
+      print(' Step 4: Navigating to HomeScreen...');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } catch (e) {
-      print('❌ Error during login: $e');
+      print(' Error during login: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('cant reach server')));
