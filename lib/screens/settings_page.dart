@@ -4,6 +4,9 @@ import 'profile_page.dart';
 import 'change_passApp.dart';
 import 'about_us_page.dart';
 import 'sign_in_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'ipadress.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -58,9 +61,51 @@ class SettingsPage extends StatelessWidget {
                           child: const Text("Cancel"),
                         ),
                         TextButton(
-                          onPressed: () {
-                            // Implement account deletion logic
-                            Navigator.pop(context);
+                          onPressed: () async {
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            int? userId = prefs.getInt('userId');
+
+                            if (userId == null) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('User not logged in'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            final response = await http.delete(
+                              Uri.parse(
+                                'http://$ip:3000/delete-account/$userId',
+                              ),
+                            );
+
+                            if (response.statusCode == 200) {
+                              // Clear local session data
+                              await prefs.clear();
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SignInPage(),
+                                ),
+                              );
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Account deleted successfully'),
+                                ),
+                              );
+                            } else {
+                              Navigator.pop(context); // Close dialog
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to delete account'),
+                                ),
+                              );
+                            }
                           },
                           child: const Text(
                             "Delete",
@@ -72,27 +117,7 @@ class SettingsPage extends StatelessWidget {
               );
             },
           ),
-          _buildSettingsTile(
-            icon: Feather.globe,
-            title: 'Multi Language',
-            onTap: () {
-              // TODO: Show language selection dialog
-              showDialog(
-                context: context,
-                builder:
-                    (_) => AlertDialog(
-                      title: const Text('Choose Language'),
-                      content: const Text('Language picker will be here.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-          ),
+
           _buildSettingsTile(
             icon: Feather.info,
             title: 'About Us',
