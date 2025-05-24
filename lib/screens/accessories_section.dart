@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/ipadress.dart';
+import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import 'ProductDetailsPage.dart';
+import 'ipadress.dart';
 
 class AccessoriesSection extends StatefulWidget {
   const AccessoriesSection({super.key});
@@ -13,226 +17,235 @@ class _AccessoriesSectionState extends State<AccessoriesSection>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<Product> allProducts = [
-    Product(
-      name: 'Men Watch',
-      imagePath: 'assets/images/watchmen.png',
-      price: 59.99,
-      description: 'Classic men\'s wristwatch.',
-      height: 10,
-      size: 'N/A',
-      sectionName: 'Accessories',
-      rating: 4.5,
-      reviewCount: 87,
-    ),
-    Product(
-      name: 'Women Watch',
-      imagePath: 'assets/images/watchwo.png',
-      price: 64.99,
-      description: 'Elegant women\'s wristwatch.',
-      height: 10,
-      size: 'N/A',
-      sectionName: 'Accessories',
-      rating: 4.8,
-      reviewCount: 103,
-    ),
-    Product(
-      name: 'Gold Necklace',
-      imagePath: 'assets/images/necklace.png',
-      price: 120.00,
-      description: 'Luxury gold necklace.',
-      height: 5,
-      size: 'N/A',
-      sectionName: 'Accessories',
-      rating: 4.9,
-      reviewCount: 80,
-    ),
-    Product(
-      name: 'Bracelet',
-      imagePath: 'assets/images/bracelets.png',
-      price: 35.00,
-      description: 'Fashion bracelet.',
-      height: 5,
-      size: 'N/A',
-      sectionName: 'Accessories',
-      rating: 4.6,
-      reviewCount: 65,
-    ),
-  ];
+  String searchQuery = '';
+  bool isLoading = true;
 
-  // نقوم بتخزين حالة المفضلة هنا
-  Map<String, bool> favorites = {};
+  final Map<String, int> categoryIds = {
+    'Men Watches': 15,
+    'Women Watches': 16,
+    'Necklaces': 17,
+    'Bracelets': 18,
+  };
+
+  final Map<String, List<Product>> productsByCategory = {
+    'Men Watches': [],
+    'Women Watches': [],
+    'Necklaces': [],
+    'Bracelets': [],
+  };
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: categoryIds.length, vsync: this);
+    fetchAllCategories();
   }
 
-  List<Product> _filterProducts(String category) {
-    switch (category) {
-      case 'Watches (Men)':
-        return allProducts.where((p) => p.name.contains('Men')).toList();
-      case 'Watches (Women)':
-        return allProducts.where((p) => p.name.contains('Women')).toList();
-      case 'Necklaces':
-        return allProducts.where((p) => p.name.contains('Necklace')).toList();
-      case 'Bracelets':
-        return allProducts.where((p) => p.name.contains('Bracelet')).toList();
-      case 'All':
-      default:
-        return allProducts;
+  Future<void> fetchAllCategories() async {
+    for (var entry in categoryIds.entries) {
+      await fetchProductsByCategory(entry.key, entry.value);
     }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> fetchProductsByCategory(
+    String categoryName,
+    int categoryId,
+  ) async {
+    final url = Uri.parse(
+      'http://$ip:3000/products/category/id/$categoryId',
+    ); // Replace with your real base URL
+
+    try {
+      final response = await http.get(url);
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('Raw data length for $categoryName: ${data.length}');
+
+        final List<Product> products =
+            data.map((item) {
+              print('Product raw item: $item');
+              return Product(
+                productId: item['product_id'] ?? 0,
+                name: item['name'] ?? '',
+                description: item['description'] ?? 'No description provided.',
+                price: double.tryParse(item['price'].toString()) ?? 0.0,
+                imagePath: item['image_url'] ?? 'default.png',
+                size: item['size'] ?? 'M',
+                quantity: item['quantity'] ?? 0,
+                averageRating:
+                    item['average_rating'] != null
+                        ? double.tryParse(item['average_rating'].toString()) ??
+                            0.0
+                        : 0.0,
+                categoryId:
+                    item['category_id'] ?? categoryId, // 👈 أضف هذا السطر
+              );
+            }).toList();
+
+        print('Parsed products count for $categoryName: ${products.length}');
+
+        productsByCategory[categoryName] = products;
+
+        print(
+          'Stored productsByCategory[${categoryName}] length: ${productsByCategory[categoryName]?.length}',
+        );
+      } else {
+        print('Failed to load $categoryName products');
+      }
+    } catch (e) {
+      print('Error fetching $categoryName products: $e');
+    }
+  }
+
+  List<Product> _filterBySearch(List<Product> list) {
+    return list
+        .where((p) => p.name.toLowerCase().contains(searchQuery.toLowerCase()))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFAF5FF),
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 1,
-          iconTheme: const IconThemeData(color: Colors.black),
-          title: const TextField(
-            decoration: InputDecoration(
-              hintText: 'Search accessories...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(30)),
-              ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 20),
-            ),
-          ),
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Colors.purple,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.purple,
-            tabs: const [
-              Tab(text: 'All'),
-              Tab(text: 'Watches (Men)'),
-              Tab(text: 'Watches (Women)'),
-              Tab(text: 'Necklaces'),
-              Tab(text: 'Bracelets'),
-            ],
-          ),
-        ),
-        body: TabBarView(
+    final categories = categoryIds.keys.toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF5FF),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const Text('Accessories', style: TextStyle(color: Colors.black)),
+        iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 1,
+        bottom: TabBar(
           controller: _tabController,
-          children: [
-            _buildGrid('All'),
-            _buildGrid('Watches (Men)'),
-            _buildGrid('Watches (Women)'),
-            _buildGrid('Necklaces'),
-            _buildGrid('Bracelets'),
-          ],
+          isScrollable: true,
+          labelColor: Colors.purple,
+          unselectedLabelColor: Colors.grey,
+          tabs: categories.map((c) => Tab(text: c)).toList(),
         ),
       ),
-    );
-  }
-
-  Widget _buildGrid(String category) {
-    final products = _filterProducts(category);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        itemCount: products.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemBuilder: (context, index) {
-          final product = products[index];
-
-          // الحصول على حالة المفضلة
-          bool isFavorite = favorites[product.name] ?? false;
-
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailsPage(product: product),
-                ),
-              );
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
                 children: [
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                        child: Image.asset(
-                          product.imagePath,
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              // تغيير حالة المفضلة
-                              favorites[product.name] = !isFavorite;
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white70,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFavorite ? Colors.red : Colors.purple,
-                              ),
-                              iconSize: 20,
-                              onPressed: null, // لا داعي هنا لإضافة أي شيء
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      product.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    padding: const EdgeInsets.all(12.0),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search ',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      '\$${product.price}',
-                      style: const TextStyle(color: Colors.purple),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children:
+                          categories.map((category) {
+                            final filtered = _filterBySearch(
+                              productsByCategory[category]!,
+                            );
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: GridView.builder(
+                                itemCount: filtered.length,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: 16,
+                                      crossAxisSpacing: 16,
+                                      childAspectRatio: 0.75,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final product = filtered[index];
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ProductDetailsPage(
+                                                product: product,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  top: Radius.circular(12),
+                                                ),
+                                            child: Image.network(
+                                              product.imagePath,
+                                              height: 140,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              product.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0,
+                                            ),
+                                            child: Text(
+                                              '\$${product.price.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                color: Colors.purple,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }).toList(),
                     ),
                   ),
                 ],
               ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

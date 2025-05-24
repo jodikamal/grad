@@ -32,13 +32,12 @@ class GlamzyApp extends StatelessWidget {
       ),
       home: Builder(
         builder: (context) {
-          // Initialize notification service
+          //
           NotificationService.init(context);
-          return const SplashScreen(); // Initial screen
+          return const SplashScreen(); //
         },
       ),
-      locale: const Locale('en', 'US'), // Set the default locale
-      // إضافة المسارات هنا
+      locale: const Locale('en', 'US'), //
     );
   }
 }

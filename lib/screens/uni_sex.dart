@@ -1,119 +1,154 @@
 import 'package:flutter/material.dart';
 import 'package:graduation/models/product.dart';
 import 'package:graduation/screens/ProductDetailsPage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'ipadress.dart';
 
-class UniSexSection extends StatelessWidget {
+class UniSexSection extends StatefulWidget {
   const UniSexSection({super.key});
 
-  // قائمة المنتجات (هوديز وتيشيرتات)
-  final List<Map<String, String>> products = const [
-    {'name': 'Hoodie - Red', 'image': 'assets/images/h-r.png'},
-    {'name': 'Hoodie - Yellow', 'image': 'assets/images/h-y.png'},
-    {'name': 'Hoodie - White', 'image': 'assets/images/h-w.png'},
-    {'name': 'Hoodie - Black', 'image': 'assets/images/h-b.png'},
-    {'name': 'Hoodie - Green', 'image': 'assets/images/h-g.png'},
-    {'name': 'Hoodie - Blue', 'image': 'assets/images/h-bl.png'},
-    {'name': 'Hoodie - White/Gray', 'image': 'assets/images/h-wh.png'},
-    {'name': 'Hoodie - Pink', 'image': 'assets/images/h-p.png'},
-    {'name': 'Hoodie - Orange', 'image': 'assets/images/h-o.png'},
-    {'name': 'T-Shirt - Red', 'image': 'assets/images/t-r.png'},
-    {'name': 'T-Shirt - Green', 'image': 'assets/images/t-g.png'},
-    {'name': 'T-Shirt - Blue', 'image': 'assets/images/t-b.png'},
-    {'name': 'T-Shirt - Yellow', 'image': 'assets/images/t-y.png'},
-    {'name': 'T-Shirt - White', 'image': 'assets/images/t-w.png'},
-    {'name': 'T-Shirt - DarkBlue', 'image': 'assets/images/t-db.png'},
-  ];
+  @override
+  State<UniSexSection> createState() => _UniSexSectionState();
+}
+
+class _UniSexSectionState extends State<UniSexSection> {
+  List<Product> _products = [];
+  bool _isLoading = true;
+
+  final String apiUrl =
+      'http://$ip:3000/products/category/id/4'; //  category_id
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts();
+  }
+
+  Future<void> fetchProducts() async {
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _products =
+              data
+                  .map(
+                    (item) => Product(
+                      productId: item['product_id'] ?? 0,
+                      name: item['name'] ?? '',
+                      description:
+                          item['description'] ?? 'No description provided.',
+                      price: double.tryParse(item['price'].toString()) ?? 0.0,
+                      imagePath: item['image_url'] ?? 'default.png',
+                      size: item['size'] ?? 'M',
+                      quantity: item['quantity'] ?? 0,
+                      averageRating:
+                          item['average_rating'] != null
+                              ? double.tryParse(
+                                    item['average_rating'].toString(),
+                                  ) ??
+                                  0.0
+                              : 0.0,
+                      categoryId: item['category_id'] ?? 0,
+                    ),
+                  )
+                  .toList();
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load products');
+      }
+    } catch (e) {
+      print('Error fetching products: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Uni-Sex'),
-        backgroundColor: Colors.purple,
+        backgroundColor: const Color.fromARGB(255, 243, 241, 244),
       ),
       backgroundColor: const Color(0xFFFAF5FF),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: GridView.builder(
-          itemCount: products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemBuilder: (context, index) {
-            final product = products[index];
-            return GestureDetector(
-              onTap: () {
-                final selectedProduct = Product(
-                  name: product['name']!,
-                  imagePath: product['image']!,
-                  price: 39,
-                  description:
-                      'High quality and stylish unisex apparel.', // وصف
-                  height: 70.0,
-                  size: 'M',
-                  sectionName: 'Uni-Sex',
-                  rating: 4.5,
-                  reviewCount: 25,
-                );
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            ProductDetailsPage(product: selectedProduct),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: GridView.builder(
+                  itemCount: _products.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 5),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(15),
+                  itemBuilder: (context, index) {
+                    final product = _products[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    ProductDetailsPage(product: product),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 5),
+                          ],
                         ),
-                        child: Image.asset(
-                          product['image']!,
-                          fit: BoxFit.cover,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(15),
+                                ),
+                                child: Image.network(
+                                  product.imagePath,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '\$${product.price}',
+                                    style: const TextStyle(
+                                      color: Color.fromARGB(255, 186, 182, 186),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product['name']!,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            '\$39',
-                            style: TextStyle(color: Colors.purple),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-            );
-          },
-        ),
-      ),
     );
   }
 }

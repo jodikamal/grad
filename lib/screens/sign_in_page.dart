@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:graduation/delivery/DeliveryOrdersPage.dart';
 import 'package:graduation/screens/MainNavigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,33 +45,45 @@ class _SignInPageState extends State<SignInPage> {
       print(' Server response code: ${serverResponse.statusCode}');
       print(' Server response body: ${serverResponse.body}');
 
-      // **أضفينا هنا شرط على الـ statusCode**
       if (serverResponse.statusCode != 200) {
-        //
         final errorMsg =
-            jsonDecode(serverResponse.body)['message'] ?? 'cant login!';
+            jsonDecode(serverResponse.body)['message'] ?? 'Cannot login!';
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMsg)));
-        return; //
+        return;
       }
 
-      // here it will be 200 -response.ok
       final responseBody = jsonDecode(serverResponse.body);
       int userId = responseBody['user_id'];
+      String userType = responseBody['user_type'];
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setInt('userId', userId);
+      await prefs.setString('userType', userType);
 
-      print(' Step 4: Navigating to HomeScreen...');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      print(' Step 4: Navigating based on user_type...');
+
+      if (userType == 'user') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else if (userType == 'delivery') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DeliveryOrdersPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Unknown user type')));
+      }
     } catch (e) {
       print(' Error during login: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('cant reach server')));
+      ).showSnackBar(const SnackBar(content: Text('Cannot reach server')));
     } finally {
       setState(() => _isLoading = false);
     }

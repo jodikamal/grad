@@ -22,6 +22,8 @@ class _CartPageState extends State<CartPage> {
 
   //here is adding to cart
   Future<void> addItemToCart(int userId, int productId, int quantity) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
     final String url = 'http://$ip:3000/cart/add';
 
     var headers = {'Content-Type': 'application/json'};
@@ -41,7 +43,7 @@ class _CartPageState extends State<CartPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Item added to cart');
-        await fetchCartItemsFromServer(); // ⬅️
+        await fetchCartItemsFromServer(); // ⬅
       } else {
         print('Failed to add item to cart. Status: ${response.statusCode}');
       }
@@ -56,11 +58,6 @@ class _CartPageState extends State<CartPage> {
     int? userId = prefs.getInt('userId');
 
     print("***************************************************** $userId");
-
-    if (userId == null) {
-      print("User ID is null. User might not be logged in.");
-      return;
-    }
 
     final String url = 'http://$ip:3000/cart/$userId';
 
@@ -110,11 +107,13 @@ class _CartPageState extends State<CartPage> {
 
   //delete the item from the cart
   Future<void> removeItemFromCart(int userId, int productId) async {
-    final String url = 'http://$ip:3000/cart/remove';
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+    final String url = 'http://$ip:3000/cart/remove/$userId';
 
     var headers = {'Content-Type': 'application/json'};
 
-    var body = jsonEncode({'user_id': userId, 'product_id': productId});
+    var body = jsonEncode({'product_id': productId});
 
     try {
       final response = await http.delete(
@@ -125,7 +124,7 @@ class _CartPageState extends State<CartPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Item removed from cart');
-        await fetchCartItemsFromServer(); // ⬅️ تحديث القائمة
+        await fetchCartItemsFromServer();
       } else {
         print('Failed to remove item. Status: ${response.statusCode}');
       }
@@ -134,12 +133,83 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
+  Future<void> increaseQuantity(int productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+
+    if (userId == null) {
+      print('❌ User ID not found in SharedPreferences');
+      return;
+    }
+
+    final url = Uri.parse('http://$ip:3000/cart/increase/$userId');
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'product_id': productId}),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Quantity increased successfully');
+        await fetchCartItemsFromServer();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sorry! Sold out',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating, //
+            duration: Duration(seconds: 3), //
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error increasing quantity: $e');
+    }
+  }
+
+  Future<void> decreaseQuantity(int productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+
+    if (userId == null) {
+      print('❌ User ID not found in SharedPreferences');
+      return;
+    }
+
+    final url = Uri.parse('http://$ip:3000/cart/decrease/$userId');
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'product_id': productId}),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Quantity decreased successfully');
+        await fetchCartItemsFromServer(); // تحديث السلة بعد التغيير
+      } else {
+        print('❌ Failed to decrease quantity: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error decreasing quantity: $e');
+    }
+  }
+
+  /*
   //updating the quantity
-  Future<void> updateItemQuantity(
-    int userId,
-    int productId,
-    int quantity,
-  ) async {
+  Future<void> updateItemQuantity(int productId, int quantity) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
     final String url = 'http://$ip:3000/cart/update';
 
     var headers = {'Content-Type': 'application/json'};
@@ -159,7 +229,7 @@ class _CartPageState extends State<CartPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Quantity updated successfully');
-        await fetchCartItemsFromServer(); // ⬅️ تحديث القائمة
+        await fetchCartItemsFromServer(); //
       } else {
         print('Failed to update quantity. Status: ${response.statusCode}');
       }
@@ -167,7 +237,7 @@ class _CartPageState extends State<CartPage> {
       print('Error updating item quantity: $e');
     }
   }
-
+*/
   double get total {
     return cartItems.fold(
       0.0,
@@ -183,44 +253,79 @@ class _CartPageState extends State<CartPage> {
       }
     });
   }*/
-
   void removeItem(int index) async {
-    int userId = cartItems[index]['user_id'];
-    int productId = cartItems[index]['product_id'];
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+
+    final productId = cartItems[index]['product_id'];
+    print("productId: $productId");
+    print("userId: $userId");
+    if (userId == null || productId == null) {
+      print('❌ Cannot delete: user_id or product_id is null');
+      return;
+    }
 
     await removeItemFromCart(userId, productId);
-
-    setState(() {
-      cartItems.removeAt(index);
-    });
   }
 
   // fun of the quantity
-  void changeQuantity(int index, int productId, int delta) {
-    setState(() {
-      int currentQuantity = cartItems[index]['quantity'];
-      int maxQuantity = cartItems[index]['max_quantity']; //
+  void changeQuantity(int index, int productId, int delta) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
 
-      int newQuantity = currentQuantity + delta;
+    if (userId == null) {
+      print('❌ user_id is null');
+      return;
+    }
 
-      if (newQuantity < 1) return;
+    final item = cartItems[index];
+    final quantity = item['quantity'];
+    final maxQuantity = item['max_quantity'];
 
-      if (newQuantity > maxQuantity) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Sorry, the item is SOLD OUT.",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
+    if (quantity == null || maxQuantity == null) {
+      print('❌ quantity or max_quantity is null');
+      return;
+    }
+
+    // احسب الكمية الجديدة محليًا
+    int newQuantity = quantity + delta;
+
+    // لا تسمح بالتقليل لأقل من 1
+    if (newQuantity < 1) return;
+
+    // لا تسمح بتجاوز الحد الأقصى
+    if (newQuantity > maxQuantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Sorry, the item is SOLD OUT."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final url = Uri.parse(
+      'http://$ip:3000/cart/${delta > 0 ? 'increase' : 'decrease'}/$userId',
+    );
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'product_id': productId}),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          cartItems[index]['quantity'] = newQuantity;
+        });
+        print("✅ Quantity updated successfully");
+      } else {
+        print("❌ Failed to update quantity: ${response.body}");
       }
-
-      cartItems[index]['quantity'] = newQuantity;
-      updateItemQuantity(cartItems[index]['user_id'], productId, newQuantity);
-    });
+    } catch (e) {
+      print("❌ Error in updating quantity: $e");
+    }
   }
 
   @override
@@ -269,9 +374,7 @@ class _CartPageState extends State<CartPage> {
                           height: 80,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.broken_image,
-                            ); // في حال الصورة غير موجودة
+                            return Icon(Icons.broken_image);
                           },
                         ),
                       ),
@@ -299,23 +402,27 @@ class _CartPageState extends State<CartPage> {
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed:
-                                      () => changeQuantity(
-                                        index,
-                                        item['product_id'],
-                                        -1,
-                                      ),
+                                  icon: Icon(Icons.add),
+                                  onPressed: () async {
+                                    await increaseQuantity(
+                                      cartItems[index]['product_id'],
+                                    );
+                                  },
                                 ),
-                                Text(item['quantity'].toString()),
+                                Text(
+                                  '${cartItems[index]['quantity']}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 IconButton(
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  onPressed:
-                                      () => changeQuantity(
-                                        index,
-                                        item['product_id'],
-                                        1,
-                                      ),
+                                  icon: Icon(Icons.remove),
+                                  onPressed: () async {
+                                    await decreaseQuantity(
+                                      cartItems[index]['product_id'],
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -364,7 +471,63 @@ class _CartPageState extends State<CartPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () async {
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      int? userId = prefs.getInt('userId');
+
+                      if (userId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("User not logged in")),
+                        );
+                        return;
+                      }
+
+                      final url = Uri.parse('http://$ip:3000/payment');
+                      final body = jsonEncode({
+                        'user_id': userId,
+                        'amount': total,
+                        'payment_method': 'Cash', // يمكن جعله اختيارًا لاحقًا
+                        'delivery_option': 'Home Delivery', // أو Pickup مثلًا
+                      });
+
+                      try {
+                        final response = await http.post(
+                          url,
+                          headers: {'Content-Type': 'application/json'},
+                          body: body,
+                        );
+
+                        if (response.statusCode == 201) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("✅ Payment successful!"),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+
+                          setState(() {
+                            cartItems.clear();
+                          });
+                        } else {
+                          print('Payment failed: ${response.statusCode}');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("❌ Payment failed"),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print('Payment error: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("❌ Error during payment"),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(255, 228, 210, 231),
                       padding: const EdgeInsets.symmetric(vertical: 14),

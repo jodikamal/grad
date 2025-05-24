@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/ipadress.dart';
+import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import 'ProductDetailsPage.dart';
+import 'ipadress.dart';
 
 class ClothesSection extends StatefulWidget {
   const ClothesSection({super.key});
@@ -13,53 +17,87 @@ class _ClothesSectionState extends State<ClothesSection>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String searchQuery = '';
+  bool isLoading = true;
 
-  final List<Product> allClothes = [
-    Product(
-      name: 'Casual Shirt',
-      imagePath: 'assets/images/clothes1.png',
-      price: 49.99,
-      description: 'Comfortable casual shirt.',
-      height: 75,
-      size: 'M',
-      sectionName: 'T-Shirts',
-      rating: 4.5,
-      reviewCount: 120,
-    ),
-    Product(
-      name: 'Elegant Dress',
-      imagePath: 'assets/images/clothes2.png',
-      price: 89.99,
-      description: 'Elegant dress for events.',
-      height: 130,
-      size: 'L',
-      sectionName: 'Dresses',
-      rating: 4.8,
-      reviewCount: 98,
-    ),
-    Product(
-      name: 'Denim Pants',
-      imagePath: 'assets/images/clothes3.png',
-      price: 69.99,
-      description: 'Stylish denim pants.',
-      height: 80,
-      size: 'L',
-      sectionName: 'Pants',
-      rating: 4.3,
-      reviewCount: 76,
-    ),
-  ];
+  final Map<String, int> categoryIds = {
+    'T-Shirts': 9,
+    'Pants': 10,
+    'Dresses': 11,
+  };
+
+  final Map<String, List<Product>> productsByCategory = {
+    'T-Shirts': [],
+    'Pants': [],
+    'Dresses': [],
+  };
 
   @override
   void initState() {
-    _tabController = TabController(length: 4, vsync: this);
     super.initState();
+    _tabController = TabController(length: categoryIds.length, vsync: this);
+    fetchAllCategories();
   }
 
-  List<Product> _filterByCategory(String category) {
-    return category == 'All'
-        ? allClothes
-        : allClothes.where((p) => p.sectionName == category).toList();
+  Future<void> fetchAllCategories() async {
+    for (var entry in categoryIds.entries) {
+      await fetchProductsByCategory(entry.key, entry.value);
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> fetchProductsByCategory(
+    String categoryName,
+    int categoryId,
+  ) async {
+    final url = Uri.parse(
+      'http://$ip:3000/products/category/id/$categoryId',
+    ); // Replace with your real base URL
+
+    try {
+      final response = await http.get(url);
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('Raw data length for $categoryName: ${data.length}');
+
+        final List<Product> products =
+            data.map((item) {
+              print('Product raw item: $item');
+              return Product(
+                productId: item['product_id'] ?? 0,
+                name: item['name'] ?? '',
+                description: item['description'] ?? 'No description provided.',
+                price: double.tryParse(item['price'].toString()) ?? 0.0,
+                imagePath: item['image_url'] ?? 'default.png',
+                size: item['size'] ?? 'M',
+                quantity: item['quantity'] ?? 0,
+                averageRating:
+                    item['average_rating'] != null
+                        ? double.tryParse(item['average_rating'].toString()) ??
+                            0.0
+                        : 0.0,
+                categoryId:
+                    item['category_id'] ?? categoryId, // 👈 أضف هذا السطر
+              );
+            }).toList();
+
+        print('Parsed products count for $categoryName: ${products.length}');
+
+        productsByCategory[categoryName] = products;
+
+        print(
+          'Stored productsByCategory[${categoryName}] length: ${productsByCategory[categoryName]?.length}',
+        );
+      } else {
+        print('Failed to load $categoryName products');
+      }
+    } catch (e) {
+      print('Error fetching $categoryName products: $e');
+    }
   }
 
   List<Product> _filterBySearch(List<Product> list) {
@@ -70,13 +108,16 @@ class _ClothesSectionState extends State<ClothesSection>
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['All', 'T-Shirts', 'Pants', 'Dresses'];
+    final categories = categoryIds.keys.toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF5FF),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('Clothes', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          'Women Clothes',
+          style: TextStyle(color: Colors.black),
+        ),
         iconTheme: const IconThemeData(color: Colors.black),
         elevation: 1,
         bottom: TabBar(
@@ -87,114 +128,124 @@ class _ClothesSectionState extends State<ClothesSection>
           tabs: categories.map((c) => Tab(text: c)).toList(),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search clothes...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children:
-                  categories.map((category) {
-                    final filtered = _filterBySearch(
-                      _filterByCategory(category),
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: GridView.builder(
-                        itemCount: filtered.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 16,
-                              crossAxisSpacing: 16,
-                              childAspectRatio: 0.75,
-                            ),
-                        itemBuilder: (context, index) {
-                          final product = filtered[index];
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) =>
-                                          ProductDetailsPage(product: product),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(12),
-                                    ),
-                                    child: Image.asset(
-                                      product.imagePath,
-                                      height: 120,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      product.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0,
-                                    ),
-                                    child: Text(
-                                      '\$${product.price}',
-                                      style: const TextStyle(
-                                        color: Colors.purple,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search clothes...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
-                    );
-                  }).toList(),
-            ),
-          ),
-        ],
-      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children:
+                          categories.map((category) {
+                            final filtered = _filterBySearch(
+                              productsByCategory[category]!,
+                            );
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: GridView.builder(
+                                itemCount: filtered.length,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: 16,
+                                      crossAxisSpacing: 16,
+                                      childAspectRatio: 0.75,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final product = filtered[index];
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ProductDetailsPage(
+                                                product: product,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  top: Radius.circular(12),
+                                                ),
+                                            child: Image.network(
+                                              product.imagePath,
+                                              height: 140,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              product.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0,
+                                            ),
+                                            child: Text(
+                                              '\$${product.price.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                color: Colors.purple,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }).toList(),
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }
