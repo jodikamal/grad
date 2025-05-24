@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+import 'package:graduation/screens/my_orders_page.dart';
 import 'profile_page.dart';
 import 'change_passApp.dart';
 import 'about_us_page.dart';
@@ -39,6 +40,16 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+              );
+            },
+          ),
+          _buildSettingsTile(
+            icon: Feather.shopping_bag,
+            title: 'My Orders',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyOrdersPage()),
               );
             },
           ),

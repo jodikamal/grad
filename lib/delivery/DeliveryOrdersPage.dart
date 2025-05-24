@@ -126,7 +126,7 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
                   Text('Status: ${order['order_status']}'),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       String newStatus;
 
                       if (order['order_status'] ==
@@ -135,11 +135,38 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
                       } else if (order['order_status'] == 'Out for Delivery') {
                         newStatus = 'Delivered';
                       } else {
-                        return; // ما تعمل شيء لو الحالة وصلت Delivered
+                        return; // لا تفعل شيء لو الحالة وصلت Delivered
                       }
 
-                      updateStatus(order['payment_id'], newStatus);
+                      final response = await http.post(
+                        Uri.parse('http://$ip:3000/delivery/update-status'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: json.encode({
+                          'payment_id': order['payment_id'],
+                          'new_status': newStatus,
+                        }),
+                      );
+
+                      if (response.statusCode == 200) {
+                        setState(() {
+                          if (newStatus == 'Delivered') {
+                            // احذف الطلب من القائمة فقط إذا كان تم توصيله
+                            orders.removeAt(index);
+                          } else {
+                            // عدل الحالة محليًا للعرض فقط
+                            orders[index]['order_status'] = newStatus;
+                          }
+                        });
+                      } else {
+                        print('Failed to update status');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('فشل في تحديث حالة الطلب'),
+                          ),
+                        );
+                      }
                     },
+
                     child: Text(
                       order['order_status'] == 'Your Order is Being Prepared'
                           ? 'Mark as Out for Delivery'
