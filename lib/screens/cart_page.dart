@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/payment_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'ipadress.dart';
@@ -471,77 +472,15 @@ class _CartPageState extends State<CartPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      SharedPreferences prefs =
-                          await SharedPreferences.getInstance();
-                      int? userId = prefs.getInt('userId');
-
-                      if (userId == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("User not logged in")),
-                        );
-                        return;
-                      }
-
-                      final url = Uri.parse('http://$ip:3000/payment');
-                      final body = jsonEncode({
-                        'user_id': userId,
-                        'amount': total,
-                        'payment_method': 'Cash', // يمكن جعله اختيارًا لاحقًا
-                        'delivery_option': 'Home Delivery', // أو Pickup مثلًا
-                      });
-
-                      try {
-                        final response = await http.post(
-                          url,
-                          headers: {'Content-Type': 'application/json'},
-                          body: body,
-                        );
-
-                        if (response.statusCode == 201) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("✅ Payment successful!"),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-
-                          setState(() {
-                            cartItems.clear();
-                          });
-                        } else {
-                          print('Payment failed: ${response.statusCode}');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("❌ Payment failed"),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        print('Payment error: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("❌ Error during payment"),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentPage(amount: total),
+                        ),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 228, 210, 231),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Buy',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text("Buy"),
                   ),
                 ),
               ],
