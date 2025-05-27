@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import 'ProductDetailsPage.dart';
 import 'ipadress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ClothesSection extends StatefulWidget {
   const ClothesSection({super.key});
@@ -18,6 +19,9 @@ class _ClothesSectionState extends State<ClothesSection>
   late TabController _tabController;
   String searchQuery = '';
   bool isLoading = true;
+  late SharedPreferences _prefs;
+  Map<int, bool> _favorites = {};
+  Map<int, int> _wishlistIds = {};
 
   final Map<String, int> categoryIds = {
     'T-Shirts': 9,
@@ -35,7 +39,12 @@ class _ClothesSectionState extends State<ClothesSection>
   void initState() {
     super.initState();
     _tabController = TabController(length: categoryIds.length, vsync: this);
-    fetchAllCategories();
+    _initSharedPreferences().then((_) => fetchAllCategories());
+  }
+
+  Future<void> _initSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    // Load initial favorites if needed
   }
 
   Future<void> fetchAllCategories() async {
@@ -51,22 +60,14 @@ class _ClothesSectionState extends State<ClothesSection>
     String categoryName,
     int categoryId,
   ) async {
-    final url = Uri.parse(
-      'http://$ip:3000/products/category/id/$categoryId',
-    ); // Replace with your real base URL
+    final url = Uri.parse('http://$ip:3000/products/category/id/$categoryId');
 
     try {
       final response = await http.get(url);
-      print('Status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('Raw data length for $categoryName: ${data.length}');
-
         final List<Product> products =
             data.map((item) {
-              print('Product raw item: $item');
               return Product(
                 productId: item['product_id'] ?? 0,
                 name: item['name'] ?? '',
@@ -80,23 +81,94 @@ class _ClothesSectionState extends State<ClothesSection>
                         ? double.tryParse(item['average_rating'].toString()) ??
                             0.0
                         : 0.0,
-                categoryId:
-                    item['category_id'] ?? categoryId, // 👈 أضف هذا السطر
+                categoryId: item['category_id'] ?? categoryId,
               );
             }).toList();
 
-        print('Parsed products count for $categoryName: ${products.length}');
-
         productsByCategory[categoryName] = products;
-
-        print(
-          'Stored productsByCategory[${categoryName}] length: ${productsByCategory[categoryName]?.length}',
-        );
-      } else {
-        print('Failed to load $categoryName products');
+        await _fetchWishlistStatus(products);
       }
     } catch (e) {
       print('Error fetching $categoryName products: $e');
+    }
+  }
+
+  Future<void> _fetchWishlistStatus(List<Product> products) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+    if (userId == null) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://$ip:3000/wishlist/user/$userId'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> wishlistItems = jsonDecode(response.body);
+
+        setState(() {
+          for (var item in wishlistItems) {
+            final productId = item['product_id'];
+            _favorites[productId] = true;
+            _wishlistIds[productId] = item['wishlist_id'];
+          }
+        });
+      }
+    } catch (e) {
+      print('Error fetching wishlist: $e');
+    }
+  }
+
+  Future<void> _toggleFavorite(int productId, bool isCurrentlyFavorite) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to add favorites')),
+      );
+      return;
+    }
+
+    setState(() {
+      _favorites[productId] = !isCurrentlyFavorite;
+    });
+
+    try {
+      if (isCurrentlyFavorite) {
+        // Remove from favorites
+        if (_wishlistIds.containsKey(productId)) {
+          final wishlistId = _wishlistIds[productId];
+          final response = await http.delete(
+            Uri.parse('http://$ip:3000/wishlist/$wishlistId'),
+          );
+
+          if (response.statusCode == 200) {
+            setState(() {
+              _wishlistIds.remove(productId);
+            });
+          }
+        }
+      } else {
+        // Add to favorites
+        final response = await http.post(
+          Uri.parse('http://$ip:3000/wishlist/$userId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'product_id': productId}),
+        );
+
+        if (response.statusCode == 201) {
+          final data = jsonDecode(response.body);
+          setState(() {
+            _wishlistIds[productId] = data['wishlist_id'];
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _favorites[productId] = isCurrentlyFavorite; // Revert on error
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating favorites: $e')));
     }
   }
 
@@ -174,6 +246,9 @@ class _ClothesSectionState extends State<ClothesSection>
                                     ),
                                 itemBuilder: (context, index) {
                                   final product = filtered[index];
+                                  final isFavorite =
+                                      _favorites[product.productId] ?? false;
+
                                   return GestureDetector(
                                     onTap: () {
                                       Navigator.push(
@@ -201,17 +276,43 @@ class _ClothesSectionState extends State<ClothesSection>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          ClipRRect(
-                                            borderRadius:
-                                                const BorderRadius.vertical(
-                                                  top: Radius.circular(12),
+                                          Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    const BorderRadius.vertical(
+                                                      top: Radius.circular(12),
+                                                    ),
+                                                child: Image.network(
+                                                  product.imagePath,
+                                                  height: 140,
+                                                  width: double.infinity,
+                                                  fit: BoxFit.cover,
                                                 ),
-                                            child: Image.network(
-                                              product.imagePath,
-                                              height: 140,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
+                                              ),
+                                              Positioned(
+                                                top: 8,
+                                                right: 8,
+                                                child: GestureDetector(
+                                                  onTap: () async {
+                                                    await _toggleFavorite(
+                                                      product.productId,
+                                                      isFavorite,
+                                                    );
+                                                  },
+                                                  child: Icon(
+                                                    isFavorite
+                                                        ? Icons.favorite
+                                                        : Icons.favorite_border,
+                                                    color:
+                                                        isFavorite
+                                                            ? Colors.red
+                                                            : Colors.white,
+                                                    size: 28,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           Padding(
                                             padding: const EdgeInsets.all(8.0),
@@ -220,6 +321,7 @@ class _ClothesSectionState extends State<ClothesSection>
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                               ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           Padding(

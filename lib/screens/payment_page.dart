@@ -1,14 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
+import 'package:graduation/screens/cart_page.dart';
 import 'package:graduation/screens/ipadress.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class PaymentPage extends StatefulWidget {
   final double amount;
   final double deliveryCost;
 
-  const PaymentPage({Key? key, required this.amount, this.deliveryCost = 0.0})
+  const PaymentPage({Key? key, required this.amount, this.deliveryCost = 20.0})
     : super(key: key);
 
   @override
@@ -19,6 +23,149 @@ class _PaymentPageState extends State<PaymentPage> {
   String _selectedPaymentMethod = 'Cash';
   bool _isLoading = false;
   int? _userId;
+  Map<String, dynamic>? paymentIntent;
+  bool isPay = false;
+
+  // Make sure you fill this list before payment
+  List<int> selectedListToPay = [];
+  List<Map<String, dynamic>> productCart = [];
+
+  Function()? onPaymentSuccess;
+
+  // Update quantities for products after payment
+  Future<void> updateQuantityOfProduct(List<int> cart_ids, int user_id) async {
+    print('Updating quantities for cart IDs: $cart_ids');
+    final response = await http.put(
+      Uri.parse('http://$ip:3000/updateTheQuantityToPayment'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<dynamic, dynamic>{
+        'cart_ids': cart_ids,
+        'user_id': user_id,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('Quantity number updated successfully');
+    } else {
+      print('Failed to update quantity');
+    }
+  }
+
+  Future<void> makePayment(BuildContext context, double amount) async {
+    print(amount);
+    String merchantCountryCode = "IL";
+    String currencyCode = "ILS";
+
+    print(merchantCountryCode);
+    print(currencyCode);
+    try {
+      paymentIntent = await createPaymentIntent(amount, context, currencyCode);
+      var gPay = PaymentSheetGooglePay(
+        merchantCountryCode: merchantCountryCode,
+        currencyCode: currencyCode,
+        testEnv: true,
+      );
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: paymentIntent!["client_secret"],
+          style: ThemeMode.dark,
+          merchantDisplayName: "Sabir",
+          googlePay: gPay,
+        ),
+      );
+      await displayPaymentIntent(context, amount);
+    } catch (e) {
+      print('Error in makePayment: $e');
+    }
+  }
+
+  Future<void> displayPaymentIntent(BuildContext context, double amount) async {
+    try {
+      await Stripe.instance.presentPaymentSheet();
+
+      isPay = true;
+      print('Payment Done');
+
+      // Update quantities after successful payment
+      if (_userId != null && selectedListToPay.isNotEmpty) {
+        await updateQuantityOfProduct(selectedListToPay, _userId!);
+      }
+
+      Flushbar(
+        message: "Payment Done",
+        duration: Duration(seconds: 3),
+        margin: EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
+
+      await Future.delayed(Duration(seconds: 3));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => CartPage()),
+      );
+
+      if (onPaymentSuccess != null) {
+        onPaymentSuccess!();
+      }
+    } catch (e) {
+      Flushbar(
+        message: "Payment Failed",
+        duration: Duration(seconds: 3),
+        backgroundColor: Colors.red,
+        margin: EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
+      print('Failed Pay: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> createPaymentIntent(
+    double amount,
+    BuildContext context,
+    String currencyCode,
+  ) async {
+    try {
+      print(amount);
+      print(currencyCode);
+      final secretKey =
+          "sk_test_51PDnd7BlhJuWT9ZMI7PKGzLG8tKIJ93YvXrYO1tbE8gXXzbNnknpzlVM5Fnkav4SlwMh7FYatLdAqNK5APr2b19K00Pm3FFumg";
+      int amountInCents = (amount * 100).toInt();
+      Map<String, dynamic> body = {
+        "amount": amountInCents.toString(),
+        "currency": currencyCode,
+      };
+      http.Response response = await http.post(
+        Uri.parse("https://api.stripe.com/v1/payment_intents"),
+        body: body,
+        headers: {
+          "Authorization": "Bearer $secretKey",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var json = jsonDecode(response.body);
+        print(json);
+        return json;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "CHECKOUT Failed\nSelect Item to CHECKOUT",
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        print('error in calling payment intent');
+        return null;
+      }
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
 
   @override
   void initState() {
@@ -41,16 +188,36 @@ class _PaymentPageState extends State<PaymentPage> {
       return;
     }
 
+    if (_selectedPaymentMethod == 'Visa') {
+      onPaymentSuccess = () async {
+        await _sendPaymentToBackend('Visa');
+
+        // Update quantities after successful Visa payment
+        if (_userId != null && selectedListToPay.isNotEmpty) {
+          await updateQuantityOfProduct(selectedListToPay, _userId!);
+        }
+      };
+      await makePayment(context, widget.amount + widget.deliveryCost);
+    } else {
+      // Cash payment
+      await _sendPaymentToBackend('Cash');
+
+      if (_userId != null && selectedListToPay.isNotEmpty) {
+        await updateQuantityOfProduct(selectedListToPay, _userId!);
+      }
+    }
+  }
+
+  Future<void> _sendPaymentToBackend(String method) async {
     setState(() {
       _isLoading = true;
     });
 
     final url = Uri.parse('http://$ip:3000/api/payment');
-
     final body = jsonEncode({
       'user_id': _userId,
       'amount': widget.amount,
-      'payment_method': _selectedPaymentMethod,
+      'payment_method': method,
       'delivery_cost': widget.deliveryCost,
     });
 
@@ -66,7 +233,6 @@ class _PaymentPageState extends State<PaymentPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? 'Payment Successful')),
         );
-        // يمكنك إعادة توجيه المستخدم هنا أو تفريغ السلة
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Payment failed. Please try again.')),
@@ -203,30 +369,30 @@ class _PaymentPageState extends State<PaymentPage> {
                       ),
                     ),
                     const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitPayment,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _submitPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 15,
                         ),
-                        child:
-                            _isLoading
-                                ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                                : const Text(
-                                  'Confirm & Pay',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                              : const Text(
+                                "Pay Now",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                     ),
                   ],
                 ),

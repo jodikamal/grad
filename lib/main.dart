@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:graduation/notification_service.dart';
 import 'firebase_options.dart'; // Import Firebase settings
 import 'screens/splash_screen.dart';
@@ -12,7 +13,10 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform, // Firebase initialization
   );
 
-  // Optional: Wait a little for Firebase to be ready
+  Stripe.publishableKey =
+      'pk_test_51PDnd7BlhJuWT9ZMJfbJ3i7U3Z1G0GOtrEiIJeSARJ0tqlCJhO7V5Pe1lT8YwtMso1AvF3knxiPpkkSIEXEzCwMR00J0FDPvZv';
+  await Stripe.instance.applySettings();
+
   await Future.delayed(const Duration(seconds: 2));
 
   runApp(const GlamzyApp());

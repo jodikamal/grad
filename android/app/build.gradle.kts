@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.graduation"
-        minSdk = flutter.minSdkVersion
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -39,4 +39,9 @@ android {
 
 flutter {
     source = "../.."
+}
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+    implementation("com.google.android.gms:play-services-wallet:19.1.0") // مكتبة خاصة بـ Google Pay إذا كنت تحتاجها
+    implementation("com.stripe:stripe-android:20.32.1") // هذه هي مكتبة Stripe
 }
