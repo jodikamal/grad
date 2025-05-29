@@ -11,9 +11,14 @@ import 'package:another_flushbar/flushbar.dart';
 class PaymentPage extends StatefulWidget {
   final double amount;
   final double deliveryCost;
+  final List<dynamic> selectedProducts; // Add this parameter
 
-  const PaymentPage({Key? key, required this.amount, this.deliveryCost = 20.0})
-    : super(key: key);
+  const PaymentPage({
+    Key? key,
+    required this.amount,
+    this.deliveryCost = 20.0,
+    required this.selectedProducts, // Add this parameter
+  }) : super(key: key);
 
   @override
   State<PaymentPage> createState() => _PaymentPageState();
@@ -28,7 +33,17 @@ class _PaymentPageState extends State<PaymentPage> {
 
   // Make sure you fill this list before payment
   List<int> selectedListToPay = [];
-  List<Map<String, dynamic>> productCart = [];
+
+  // Move productCart to a getter so it uses the passed selectedProducts
+  List<Map<String, dynamic>> get productCart {
+    return widget.selectedProducts.map((product) {
+      return {
+        "product_id": product['product_id'],
+        "quantity": product['quantity'],
+        "cart_id": product['cart_id'],
+      };
+    }).toList();
+  }
 
   Function()? onPaymentSuccess;
 
@@ -171,6 +186,12 @@ class _PaymentPageState extends State<PaymentPage> {
   void initState() {
     super.initState();
     _loadUserId();
+
+    // Debug: Print the selected products to verify they're passed correctly
+    print(
+      'Selected products in PaymentPage: ${widget.selectedProducts.length}',
+    );
+    print('Product cart: $productCart');
   }
 
   Future<void> _loadUserId() async {
@@ -185,6 +206,14 @@ class _PaymentPageState extends State<PaymentPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('User not logged in')));
+      return;
+    }
+
+    // Check if there are products to pay for
+    if (productCart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No products selected for payment')),
+      );
       return;
     }
 
@@ -213,13 +242,21 @@ class _PaymentPageState extends State<PaymentPage> {
       _isLoading = true;
     });
 
+    // Debug prints
+    print('Product Cart: $productCart');
+    print('Selected products: ${widget.selectedProducts.length}');
+    print('User ID: $_userId');
+
     final url = Uri.parse('http://$ip:3000/api/payment');
     final body = jsonEncode({
       'user_id': _userId,
       'amount': widget.amount,
       'payment_method': method,
       'delivery_cost': widget.deliveryCost,
+      'items': productCart,
     });
+
+    print('Sending to backend: $body');
 
     try {
       final response = await http.post(
@@ -228,10 +265,19 @@ class _PaymentPageState extends State<PaymentPage> {
         body: body,
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? 'Payment Successful')),
+        );
+
+        // Navigate back to cart or home after successful payment
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => CartPage()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -239,6 +285,7 @@ class _PaymentPageState extends State<PaymentPage> {
         );
       }
     } catch (e) {
+      print('Error in payment: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error occurred: $e')));
@@ -265,6 +312,26 @@ class _PaymentPageState extends State<PaymentPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // Show selected products count
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Selected Items: ${widget.selectedProducts.length}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Icon(Icons.shopping_cart, color: Colors.deepPurple),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
                     Card(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

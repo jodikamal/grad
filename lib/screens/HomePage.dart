@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+import 'package:graduation/screens/DeliveryNotifications.dart';
 import 'package:graduation/screens/ipadress.dart';
+import 'package:graduation/screens/notification_user.dart';
 import 'package:http/http.dart' as http;
 import '../screens/settings_page.dart';
 import '../screens/clothes_section.dart';
@@ -72,7 +74,18 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         actions: [
-          IconButton(icon: const Icon(Feather.bell), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserNotificationsPage(),
+                ),
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Feather.settings),
             onPressed: () {

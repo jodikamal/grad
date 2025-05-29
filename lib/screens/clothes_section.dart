@@ -4,7 +4,6 @@ import 'package:graduation/screens/ipadress.dart';
 import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import 'ProductDetailsPage.dart';
-import 'ipadress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ClothesSection extends StatefulWidget {
@@ -128,47 +127,54 @@ class _ClothesSectionState extends State<ClothesSection>
       return;
     }
 
-    setState(() {
-      _favorites[productId] = !isCurrentlyFavorite;
-    });
-
-    try {
-      if (isCurrentlyFavorite) {
-        // Remove from favorites
-        if (_wishlistIds.containsKey(productId)) {
-          final wishlistId = _wishlistIds[productId];
-          final response = await http.delete(
-            Uri.parse('http://$ip:3000/wishlist/$wishlistId'),
-          );
-
-          if (response.statusCode == 200) {
-            setState(() {
-              _wishlistIds.remove(productId);
-            });
-          }
-        }
-      } else {
-        // Add to favorites
-        final response = await http.post(
-          Uri.parse('http://$ip:3000/wishlist/$userId'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'product_id': productId}),
+    // إذا المنتج موجود مسبقًا وتم النقر عليه مجددًا (يعني نريد نحذفه)
+    if (isCurrentlyFavorite) {
+      if (_wishlistIds.containsKey(productId)) {
+        final wishlistId = _wishlistIds[productId];
+        final response = await http.delete(
+          Uri.parse('http://$ip:3000/wishlist/$wishlistId'),
         );
 
-        if (response.statusCode == 201) {
-          final data = jsonDecode(response.body);
+        if (response.statusCode == 200) {
           setState(() {
-            _wishlistIds[productId] = data['wishlist_id'];
+            _favorites[productId] = false;
+            _wishlistIds.remove(productId);
           });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Removed from wishlist')),
+          );
         }
       }
-    } catch (e) {
-      setState(() {
-        _favorites[productId] = isCurrentlyFavorite; // Revert on error
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error updating favorites: $e')));
+    } else {
+      // إذا المنتج مضاف مسبقًا لا تقم بإضافته مرة أخرى
+      if (_wishlistIds.containsKey(productId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product is already in your wishlist')),
+        );
+        return;
+      }
+
+      // الإضافة إلى المفضلة
+      final response = await http.post(
+        Uri.parse('http://$ip:3000/wishlist/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'product_id': productId}),
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _favorites[productId] = true;
+          _wishlistIds[productId] = data['wishlist_id'];
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to wishlist')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add: ${response.body}')),
+        );
+      }
     }
   }
 

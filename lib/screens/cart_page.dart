@@ -476,7 +476,12 @@ class _CartPageState extends State<CartPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaymentPage(amount: total),
+                          builder:
+                              (context) => PaymentPage(
+                                amount: total,
+                                selectedProducts:
+                                    cartItems, // Pass all cart items
+                              ),
                         ),
                       );
                     },

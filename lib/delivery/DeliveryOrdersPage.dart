@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:graduation/screens/DeliveryNotifications.dart';
 import 'package:graduation/screens/ipadress.dart';
 import 'package:graduation/screens/sign_in_page.dart';
 import 'package:http/http.dart' as http;
@@ -35,7 +36,8 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
                 .where(
                   (order) =>
                       order['order_status'] == 'Your Order is Being Prepared' ||
-                      order['order_status'] == 'Out for Delivery',
+                      order['order_status'] == 'Out for Delivery' ||
+                      order['order_status'] == 'Delivered',
                 )
                 .toList();
       });
@@ -80,11 +82,15 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No new notifications')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DeliveryNotificationsPage(),
+                ),
               );
             },
           ),
+
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
             onPressed: () async {
@@ -101,85 +107,88 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
         ],
       ),
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final order = orders[index];
+      body: RefreshIndicator(
+        onRefresh: fetchOrders,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            final order = orders[index];
 
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            elevation: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Order ID: ${order['payment_id']}'),
-                  Text('User: ${order['user_name']}'),
-                  Text('Amount: ${order['amount']}'),
-                  Text('Payment Method: ${order['payment_method']}'),
-                  Text('Address: ${order['delivery_option']}'),
-                  Text('Status: ${order['order_status']}'),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () async {
-                      String newStatus;
-
-                      if (order['order_status'] ==
-                          'Your Order is Being Prepared') {
-                        newStatus = 'Out for Delivery';
-                      } else if (order['order_status'] == 'Out for Delivery') {
-                        newStatus = 'Delivered';
-                      } else {
-                        return; // لا تفعل شيء لو الحالة وصلت Delivered
-                      }
-
-                      final response = await http.post(
-                        Uri.parse('http://$ip:3000/delivery/update-status'),
-                        headers: {'Content-Type': 'application/json'},
-                        body: json.encode({
-                          'payment_id': order['payment_id'],
-                          'new_status': newStatus,
-                        }),
-                      );
-
-                      if (response.statusCode == 200) {
-                        setState(() {
-                          if (newStatus == 'Delivered') {
-                            // احذف الطلب من القائمة فقط إذا كان تم توصيله
-                            orders.removeAt(index);
-                          } else {
-                            // عدل الحالة محليًا للعرض فقط
-                            orders[index]['order_status'] = newStatus;
-                          }
-                        });
-                      } else {
-                        print('Failed to update status');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('فشل في تحديث حالة الطلب'),
-                          ),
-                        );
-                      }
-                    },
-
-                    child: Text(
-                      order['order_status'] == 'Your Order is Being Prepared'
-                          ? 'Mark as Out for Delivery'
-                          : order['order_status'] == 'Out for Delivery'
-                          ? 'Mark as Delivered'
-                          : 'Delivered',
-                    ),
-                  ),
-                ],
+            return Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-          );
-        },
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Order ID: ${order['payment_id']}'),
+                    Text('User: ${order['user_name']}'),
+                    Text('Amount: ${order['amount']}'),
+                    Text('Payment Method: ${order['payment_method']}'),
+                    Text('Address: ${order['delivery_option']}'),
+                    Text('Status: ${order['order_status']}'),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        String newStatus;
+
+                        if (order['order_status'] ==
+                            'Your Order is Being Prepared') {
+                          newStatus = 'Out for Delivery';
+                        } else if (order['order_status'] ==
+                            'Out for Delivery') {
+                          newStatus = 'Delivered';
+                        } else {
+                          return;
+                        }
+
+                        await updateStatus(order['payment_id'], newStatus);
+
+                        final response = await http.post(
+                          Uri.parse('http://$ip:3000/delivery/update-status'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: json.encode({
+                            'payment_id': order['payment_id'],
+                            'new_status': newStatus,
+                          }),
+                        );
+
+                        if (response.statusCode == 200) {
+                          setState(() {
+                            if (newStatus == 'Delivered') {
+                              orders.removeAt(index);
+                            } else {
+                              orders[index]['order_status'] = newStatus;
+                            }
+                          });
+                        } else {
+                          print('Failed to update status');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('فشل في تحديث حالة الطلب'),
+                            ),
+                          );
+                        }
+                      },
+                      child: Text(
+                        order['order_status'] == 'Your Order is Being Prepared'
+                            ? 'Mark as Out for Delivery'
+                            : order['order_status'] == 'Out for Delivery'
+                            ? 'Mark as Delivered'
+                            : 'Delivered',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
