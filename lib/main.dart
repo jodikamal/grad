@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -18,8 +19,14 @@ Future<void> main() async {
   await Stripe.instance.applySettings();
 
   await Future.delayed(const Duration(seconds: 2));
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const GlamzyApp());
+}
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("🔄 Background message received: ${message.messageId}");
 }
 
 class GlamzyApp extends StatelessWidget {

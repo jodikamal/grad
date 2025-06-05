@@ -30,7 +30,7 @@ class _UserNotificationsPageState extends State<UserNotificationsPage> {
     }
 
     print('Fetching notifications for userId: $userId');
-    await fetchNotifications(userId.toString()); // Add this line
+    await fetchNotifications(userId.toString()); //
   }
 
   Future<void> fetchNotifications(String userId) async {

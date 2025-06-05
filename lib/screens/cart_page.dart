@@ -74,6 +74,8 @@ class _CartPageState extends State<CartPage> {
                 final price = item['price'];
                 final quantity = item['quantity'];
                 final maxQuantity = item['max_quantity'];
+                final imageDesigned = item['image_designed'];
+
                 print(item);
                 return {
                   ...item,
@@ -239,11 +241,20 @@ class _CartPageState extends State<CartPage> {
     }
   }
 */
+
   double get total {
-    return cartItems.fold(
-      0.0,
-      (sum, item) => sum + (item['price'] as num) * (item['quantity'] as num),
-    );
+    return cartItems.fold(0.0, (sum, item) {
+      double price = item['price'] as double;
+      int quantity = item['quantity'] as int;
+
+      // إضافة 15 دولار إذا كان هناك تصميم
+      if (item['image_designed'] != null &&
+          item['image_designed'].toString().isNotEmpty) {
+        price += 15;
+      }
+
+      return sum + (price * quantity);
+    });
   }
 
   /*void updateQuantity(int index, int delta) {
@@ -351,6 +362,11 @@ class _CartPageState extends State<CartPage> {
               itemCount: cartItems.length,
               itemBuilder: (context, index) {
                 final item = cartItems[index];
+                double displayedPrice = item['price'];
+                if (item['image_designed'] != null &&
+                    item['image_designed'].toString().isNotEmpty) {
+                  displayedPrice += 15;
+                }
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(10),
@@ -370,7 +386,9 @@ class _CartPageState extends State<CartPage> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          item['image_url'],
+                          item['image_designed']?.isNotEmpty == true
+                              ? item['image_designed']
+                              : item['image_url'],
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
@@ -399,6 +417,19 @@ class _CartPageState extends State<CartPage> {
                                 color: Colors.grey,
                               ),
                             ),
+                            if (item['image_designed'] != null &&
+                                item['image_designed'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: Text(
+                                  '+\$15',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 10),
                             Row(
                               children: [
@@ -446,6 +477,7 @@ class _CartPageState extends State<CartPage> {
               color: Colors.white,
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
             ),
+
             child: Column(
               children: [
                 Row(
@@ -458,6 +490,7 @@ class _CartPageState extends State<CartPage> {
                       ),
                     ),
                     const Spacer(),
+
                     Text(
                       '${total.toStringAsFixed(2)} \$',
                       style: const TextStyle(

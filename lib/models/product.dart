@@ -43,10 +43,12 @@ class CartItem {
   final Product product;
   int quantity;
   int maxQuantity;
+  String? imageDesigned;
 
   CartItem({
     required this.product,
     required this.quantity,
     required this.maxQuantity,
+    this.imageDesigned,
   });
 }

@@ -25,8 +25,8 @@ class _SunglassesSectionState extends State<SunglassesSection>
   Map<int, int> _wishlistIds = {};
 
   final Map<String, int> categoryIds = {
-    'Women Sunglasses': 19,
-    'Men sunglasses': 20,
+    'Women Sunglasses': 20,
+    'Men sunglasses': 19,
   };
 
   final Map<String, List<Product>> productsByCategory = {
