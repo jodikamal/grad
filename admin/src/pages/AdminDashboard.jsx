@@ -3,6 +3,7 @@ import OrdersPage from './OrdersPage';
 import AddProductPage from './AddProductPage';
 import DeleteProduct from './DeleteProduct';
 import ProductList from './ProductList';
+import MessagesPage from './MessagesPage';
 
 const AdminDashboard = () => {
   const [selectedTab, setSelectedTab] = useState('orders');
@@ -19,6 +20,10 @@ const AdminDashboard = () => {
         return <ProductList />;
       default:
         return <OrdersPage />;
+        
+          case 'Messages':
+            return<MessagesPage />
+
     }
   };
 
@@ -47,6 +52,11 @@ const AdminDashboard = () => {
             label="View Products"
             active={selectedTab === 'view'}
             onClick={() => setSelectedTab('view')}
+          />
+            <SidebarButton
+            label="Messages"
+            active={selectedTab === 'Messages'}
+            onClick={() => setSelectedTab('Messages')}
           />
         </div>
       </div>

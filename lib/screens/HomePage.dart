@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:graduation/screens/DeliveryNotifications.dart';
 import 'package:graduation/screens/ipadress.dart';
+import 'package:graduation/screens/messages.dart';
 import 'package:graduation/screens/notification_user.dart';
 import 'package:http/http.dart' as http;
 import '../screens/settings_page.dart';
@@ -85,6 +86,15 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.message, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MessagesPage()),
+              );
+            },
+          ),
 
           IconButton(
             icon: const Icon(Feather.settings),
@@ -163,11 +173,11 @@ class _HomePageState extends State<HomePage> {
               context,
               newArrivals.take(4).toList(),
             ),
-            /* _buildProductGroup(
+            _buildProductGroup(
               'Best Sellers',
               context,
-              bestSellers.take(4).toList(),
-            ),*/
+              newArrivals.take(4).toList().reversed.toList(),
+            ),
           ],
         ),
       ),

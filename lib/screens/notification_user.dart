@@ -30,7 +30,7 @@ class _UserNotificationsPageState extends State<UserNotificationsPage> {
     }
 
     print('Fetching notifications for userId: $userId');
-    await fetchNotifications(userId.toString()); //
+    await fetchNotifications(userId.toString());
   }
 
   Future<void> fetchNotifications(String userId) async {
@@ -58,32 +58,74 @@ class _UserNotificationsPageState extends State<UserNotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('User Notifications')),
+      backgroundColor: const Color(0xFFFDF5FF),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Notifications',
+          style: TextStyle(color: Colors.black),
+        ),
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
       body:
           isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
               : notifications.isEmpty
-              ? Center(child: Text('No notifications available.'))
+              ? Center(
+                child: Text(
+                  'No notifications available.',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              )
               : ListView.builder(
+                padding: const EdgeInsets.all(12),
                 itemCount: notifications.length,
                 itemBuilder: (context, index) {
                   final notif = notifications[index];
                   return Card(
-                    margin: EdgeInsets.all(10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
                     child: ListTile(
-                      title: Text(notif['title']),
+                      contentPadding: const EdgeInsets.all(16),
+                      title: Text(
+                        notif['title'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.purple[800],
+                        ),
+                      ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(notif['body']),
-                          SizedBox(height: 5),
+                          const SizedBox(height: 6),
                           Text(
-                            'Status: ${notif['status']}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            notif['body'],
+                            style: const TextStyle(fontSize: 14),
                           ),
-                          Text(
-                            'Time: ${notif['timestamp']}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Status: ${notif['status']}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                notif['timestamp'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
