@@ -75,6 +75,7 @@ class _CartPageState extends State<CartPage> {
                 final quantity = item['quantity'];
                 final maxQuantity = item['max_quantity'];
                 final imageDesigned = item['image_designed'];
+                final size = item['size'];
 
                 print(item);
                 return {

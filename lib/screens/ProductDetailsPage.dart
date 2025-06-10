@@ -374,7 +374,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               MaterialPageRoute(
                                 builder:
                                     (context) => TryGlassesPage(
-                                      glassesImageUrl: product.imagePath,
+                                      glassesImagePath: product.imagePath,
                                     ),
                               ),
                             );

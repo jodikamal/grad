@@ -147,7 +147,8 @@ class _PaymentPageState extends State<PaymentPage> {
     try {
       print(amount);
       print(currencyCode);
-
+      final secretKey =
+          "sk_test_51PDnd7BlhJuWT9ZMI7PKGzLG8tKIJ93YvXrYO1tbE8gXXzbNnknpzlVM5Fnkav4SlwMh7FYatLdAqNK5APr2b19K00Pm3FFumg";
       int amountInCents = (amount * 100).toInt();
       Map<String, dynamic> body = {
         "amount": amountInCents.toString(),
@@ -156,7 +157,10 @@ class _PaymentPageState extends State<PaymentPage> {
       http.Response response = await http.post(
         Uri.parse("https://api.stripe.com/v1/payment_intents"),
         body: body,
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        headers: {
+          "Authorization": "Bearer $secretKey",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         var json = jsonDecode(response.body);
