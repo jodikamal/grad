@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44859872881",
+    "project_id": "glamzy-app",
+    "storage_bucket": "glamzy-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44859872881:android:ad2158347a6f8981452dd0",
+        "android_client_info": {
+          "package_name": "com.example.graduation"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeVUnTg8yxXMMiJ9P9IVl0SoVj3Z-lLRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

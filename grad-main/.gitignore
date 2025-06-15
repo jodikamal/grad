@@ -1,0 +1,70 @@
+# Flutter/Dart related files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+.cvm/
+
+# Android related files
+*/android/*/gradle-wrapper.jar
+**/android/.gradle/
+**/android/captures/
+*/android/*/local.properties
+**/android/app/.cxx
+# iOS related files
+# **/ios/Flutter/Flutter.framework/
+# **/ios/Flutter/Flutter.podspec
+# **/ios/Flutter/Debug.xcconfig
+# **/ios/Flutter/Release.xcconfig
+# **/ios/Flutter/App.framework
+# **/ios/Flutter/Flutter.podspec.json
+# **/ios/.symlinks/
+# **/ios/Pods/
+# **/ios/Podfile.lock
+
+# macOS related files
+**/macos/Flutter/Flutter.framework/
+**/macos/Flutter/Flutter.podspec
+**/macos/.symlinks/
+**/macos/Pods/
+**/macos/Podfile.lock
+
+# Web related files
+web/.dart_tool/
+web/build/
+
+# Windows related files
+windows/flutter/ephemeral/
+
+# Linux related files
+linux/flutter/ephemeral/
+
+# Generated files
+*.iml
+*.ipr
+*.iws
+*.idea/
+*.lock
+*.log
+*.tmp
+*.swp
+*.DS_Store
+# *.plist
+*.so
+
+# Other IDE files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.log
+*.bak
+
+# Coverage reports
+coverage/
+lib/utils/constants.dart
+android/app/.cxx/Debug/6r4p5s2g/arm64-v8a/configure_fingerprint.bin
+android/app/.cxx/RelWithDebInfo/3a2f4267/hash_key.txt
+.qodo
