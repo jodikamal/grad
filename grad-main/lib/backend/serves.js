@@ -415,60 +415,6 @@ app.put('/profile/:id', async (req, res) => {
   });
 });
 
-// Message Routes
-app.get('/messages/:userId', (req, res) => {
-  const userId = req.params.userId;
-  const sql = `
-    SELECT m.*, u.name as sender_name 
-    FROM messages m
-    LEFT JOIN users u ON m.sender_id = u.user_id
-    WHERE m.sender_id = ? OR m.receiver_id = ?
-    ORDER BY m.timestamp DESC
-  `;
-  
-  db.query(sql, [userId, userId], (err, results) => {
-    if (err) {
-      console.error('Error fetching messages:', err);
-      return res.status(500).json({ message: 'Error fetching messages', error: err });
-    }
-    res.json(results);
-  });
-});
-
-app.get('/admin/messages', (req, res) => {
-  const sql = `
-    SELECT m.*, u.name as sender_name 
-    FROM messages m
-    LEFT JOIN users u ON m.sender_id = u.user_id
-    ORDER BY m.timestamp DESC
-  `;
-  
-  db.query(sql, [], (err, results) => {
-    if (err) {
-      console.error('Error fetching messages:', err);
-      return res.status(500).json({ message: 'Error fetching messages', error: err });
-    }
-    res.json(results);
-  });
-});
-
-app.post('/messages/send', (req, res) => {
-  const { sender_id, receiver_id, content, is_admin, sender_name } = req.body;
-  
-  const sql = `
-    INSERT INTO messages (sender_id, receiver_id, content, timestamp, is_admin, sender_name)
-    VALUES (?, ?, ?, NOW(), ?, ?)
-  `;
-  
-  db.query(sql, [sender_id, receiver_id || null, content, is_admin ? 1 : 0, sender_name], (err, result) => {
-    if (err) {
-      console.error('Error sending message:', err);
-      return res.status(500).json({ message: 'Error sending message', error: err });
-    }
-    res.json({ message: 'Message sent successfully', messageId: result.insertId });
-  });
-});
-
 // تشغيل السيرفر
 app.listen(port, () => {
   console.log(`Server running at http://192.168.88.9:${port}`);

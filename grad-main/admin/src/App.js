@@ -1,18 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import AddProductPage from './pages/AddProductPage'; 
+import AddProductPage from './pages/AddProductPage';
+import { Box } from '@mui/material';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/add-product" element={<AddProductPage />} /> 
-      
-      </Routes>
+      <Box sx={{ p: 3 }}>
+        <Routes>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/add-product" element={<AddProductPage />} />
+        </Routes>
+      </Box>
     </Router>
   );
 }
