@@ -127,3 +127,25 @@
 .message-input button:active {
   background-color: #6200ee;
 }
+
+.selected-user-header {
+  padding: 16px;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.selected-user-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.no-chat-selected {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 1.1rem;
+  background-color: white;
+}

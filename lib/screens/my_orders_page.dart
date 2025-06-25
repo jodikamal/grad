@@ -51,7 +51,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
           backgroundColor: Colors.red,
         ),
       );
-      await fetchUserOrders(); // تحديث قائمة الطلبات بعد الإلغاء
+      await fetchUserOrders();
     } else {
       print('Failed to cancel order: ${response.body}');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,124 +88,185 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
         foregroundColor: Colors.black,
         title: Row(
           children: [
-            Image.asset('assets/images/orderpage.png', width: 40, height: 40),
+            Icon(Icons.shopping_bag, color: Colors.white),
             const SizedBox(width: 8),
             const Text(
               'My Orders',
               style: TextStyle(
-                color: Colors.black,
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
       ),
+      body:
+          orders.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                itemCount: orders.length,
+                padding: const EdgeInsets.all(16),
+                itemBuilder: (context, index) {
+                  final order = orders[index];
+                  final String status = order['order_status'].toString();
+                  final bool isCancellable = canCancel(status);
 
-      body: Column(
-        children: [
-          /// قائمة الطلبات
-          Expanded(
-            child: ListView.builder(
-              itemCount: orders.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final order = orders[index];
-                final String status = order['order_status'].toString();
-                final bool isCancellable = canCancel(status);
-
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Order ID: ${order['payment_id']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-
-                        /// حالة الطلب داخل Container
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Order ID: ${order['payment_id']}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: getStatusColor(status),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          decoration: BoxDecoration(
-                            color: getStatusColor(status),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-                        Text('Amount: \$${order['amount']}'),
-                        Text('Payment: ${order['payment_method']}'),
-                        Text('Delivery: ${order['delivery_option']}'),
-
-                        /// زر إلغاء الطلب
-                        if (isCancellable) ...[
+                          const SizedBox(height: 8),
+                          Text('Amount: \$${order['amount']}'),
+                          Text('Payment: ${order['payment_method']}'),
+                          Text('Delivery: ${order['delivery_option']}'),
                           const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
+
+                          /// زر Show Items
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
                                 context: context,
                                 builder:
-                                    (context) => AlertDialog(
-                                      title: const Text("Cancel Order"),
-                                      content: const Text(
-                                        "Are you sure you want to cancel this order?",
+                                    (_) => AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      title: const Text("Ordered Items"),
+                                      content: SizedBox(
+                                        width: double.maxFinite,
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          itemCount:
+                                              order['items']?.length ?? 0,
+                                          itemBuilder: (context, i) {
+                                            final item = order['items'][i];
+                                            return ListTile(
+                                              leading: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: Image.network(
+                                                  item['image'],
+                                                  width: 50,
+                                                  height: 50,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                              title: Text(item['name']),
+                                              subtitle: Text(
+                                                'Quantity: ${item['quantity']}',
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       ),
                                       actions: [
                                         TextButton(
                                           onPressed:
-                                              () =>
-                                                  Navigator.pop(context, false),
-                                          child: const Text("No"),
-                                        ),
-                                        TextButton(
-                                          onPressed:
-                                              () =>
-                                                  Navigator.pop(context, true),
-                                          child: const Text("Yes"),
+                                              () => Navigator.pop(context),
+                                          child: const Text("Close"),
                                         ),
                                       ],
                                     ),
                               );
-
-                              if (confirm == true) {
-                                cancelOrder(order['payment_id']);
-                              }
                             },
+                            icon: const Icon(Icons.remove_red_eye),
+                            label: const Text("Show Items"),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            child: const Text(
-                              'Cancel Order',
-                              style: TextStyle(color: Colors.white),
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
                             ),
                           ),
+
+                          /// زر إلغاء الطلب
+                          if (isCancellable) ...[
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text("Cancel Order"),
+                                        content: const Text(
+                                          "Are you sure you want to cancel this order?",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                            child: const Text("No"),
+                                          ),
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                            child: const Text("Yes"),
+                                          ),
+                                        ],
+                                      ),
+                                );
+
+                                if (confirm == true) {
+                                  cancelOrder(order['payment_id']);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text(
+                                'Cancel Order',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+                  );
+                },
+              ),
     );
   }
 }

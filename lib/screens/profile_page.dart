@@ -362,10 +362,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        backgroundColor: Colors.deepPurple.shade100,
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.poppins(color: Colors.deepPurple),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save, color: Colors.deepPurple),
             onPressed: _isLoading ? null : _updateProfile,
           ),
         ],
@@ -398,22 +402,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               color: Colors.white,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.edit, size: 20),
+                            child: const Icon(Icons.camera_alt, size: 20),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildTextField(_nameController, 'Name'),
+                    _buildStyledTextField(_nameController, 'Name'),
                     const SizedBox(height: 16),
-                    _buildTextField(_emailController, 'Email'),
+                    _buildStyledTextField(_emailController, 'Email'),
                     const SizedBox(height: 16),
-                    _buildTextField(_addressController, 'Address'),
+                    _buildStyledTextField(_addressController, 'Address'),
                     const SizedBox(height: 16),
-                    _buildTextField(_phoneController, 'Phone'),
-                    const SizedBox(height: 16),
-                    _buildTextField(_imageUrlController, 'Profile Image URL'),
-                    const SizedBox(height: 24),
+                    _buildStyledTextField(_phoneController, 'Phone'),
+                    const SizedBox(height: 30),
                     _buildSaveButton(),
                   ],
                 ),
@@ -421,25 +423,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label) {
+  Widget _buildStyledTextField(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
+      style: GoogleFonts.poppins(color: Colors.deepPurple.shade800),
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: GoogleFonts.poppins(color: Colors.deepPurple.shade400),
+        filled: true,
+        fillColor: Colors.deepPurple.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
 
   Widget _buildSaveButton() {
-    return ElevatedButton(
+    return ElevatedButton.icon(
       onPressed: _isLoading ? null : _updateProfile,
+      icon: const Icon(Icons.save, color: Colors.white),
+      label: Text(
+        'Save Changes',
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
+      ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color.fromARGB(255, 116, 101, 142),
-        minimumSize: const Size.fromHeight(50),
+        backgroundColor: Colors.deepPurple,
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: const Text('Save Changes'),
     );
   }
 }

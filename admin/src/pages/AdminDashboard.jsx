@@ -8,6 +8,14 @@ import MessagesPage from './MessagesPage';
 const AdminDashboard = () => {
   const [selectedTab, setSelectedTab] = useState('orders');
 
+  // Example: Replace these with real data from your backend or state
+  const totalSales = 10000; // Example: total revenue
+  const totalCost = 7000;   // Example: total cost
+
+  // Calculate profit and profit percentage
+  const profit = totalSales - totalCost;
+  const profitPercentage = totalSales > 0 ? ((profit / totalSales) * 100).toFixed(2) : 0;
+
   const renderPage = () => {
     switch (selectedTab) {
       case 'orders':
@@ -20,10 +28,8 @@ const AdminDashboard = () => {
         return <ProductList />;
       default:
         return <OrdersPage />;
-        
-          case 'Messages':
-            return<MessagesPage />
-
+      case 'Messages':
+        return <MessagesPage />
     }
   };
 
@@ -38,6 +44,23 @@ const AdminDashboard = () => {
             active={selectedTab === 'orders'}
             onClick={() => setSelectedTab('orders')}
           />
+          {/* Profit Percentage under Orders */}
+          <div style={{
+            background: '#e0e7ff',
+            color: '#4b2991',
+            padding: '12px 10px',
+            borderRadius: '10px',
+            margin: '10px 0 18px 0',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            boxShadow: '0 2px 8px rgba(123,73,211,0.08)',
+            textAlign: 'center'
+          }}>
+            Profit: {profitPercentage}%<br />
+            <span style={{fontWeight: 'normal', fontSize: '13px'}}>
+              (${profit} / ${totalSales})
+            </span>
+          </div>
           <SidebarButton
             label="Add Product"
             active={selectedTab === 'add'}
@@ -53,7 +76,7 @@ const AdminDashboard = () => {
             active={selectedTab === 'view'}
             onClick={() => setSelectedTab('view')}
           />
-            <SidebarButton
+          <SidebarButton
             label="Messages"
             active={selectedTab === 'Messages'}
             onClick={() => setSelectedTab('Messages')}

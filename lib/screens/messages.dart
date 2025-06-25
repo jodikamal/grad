@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'dart:async';
 import '../models/message.dart';
-import 'ipadress.dart';
+import '../services/message_service.dart';
 
 class MessagesPage extends StatefulWidget {
-  const MessagesPage({Key? key}) : super(key: key);
+  const MessagesPage({super.key});
 
   @override
   State<MessagesPage> createState() => _MessagesPageState();
@@ -15,73 +14,117 @@ class MessagesPage extends StatefulWidget {
 class _MessagesPageState extends State<MessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final MessageService _messageService = MessageService();
+
   List<Message> messages = [];
   int? userId;
   bool isAdmin = false;
   String? userName;
+  Timer? _timer;
+  bool _isLoading = false;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    // Set up periodic message fetching
+    _timer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _fetchMessages(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
     setState(() {
       userId = prefs.getInt('userId');
       isAdmin = prefs.getBool('isAdmin') ?? false;
       userName = prefs.getString('userName');
     });
-    await _fetchMessages();
+    if (userId != null) {
+      await _fetchMessages();
+      await _updateUnreadCount();
+    }
+  }
+
+  Future<void> _updateUnreadCount() async {
+    if (userId == null) return;
+    try {
+      final count = await _messageService.getUnreadMessageCount(userId!);
+      setState(() {
+        _unreadCount = count;
+      });
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   Future<void> _fetchMessages() async {
     if (userId == null) return;
 
     try {
-      final response = await http.get(
-        Uri.parse('http://$ip:3000/messages/${userId}'),
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          messages = data.map((json) => Message.fromJson(json)).toList();
-        });
-        _scrollToBottom();
-      }
+      setState(() => _isLoading = true);
+      final fetchedMessages = await _messageService.fetchMessages(userId!);
+      setState(() {
+        messages = fetchedMessages;
+        messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      });
+      _scrollToBottom();
+      await _updateUnreadCount();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading messages: $e')));
+      _showErrorSnackBar('Error loading messages: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _sendMessage() async {
     if (userId == null || _messageController.text.trim().isEmpty) return;
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://$ip:3000/messages/send'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'sender_id': userId,
-          'content': _messageController.text.trim(),
-          'is_admin': isAdmin ? 1 : 0,
-          'sender_name': userName,
-        }),
-      );
+    final content = _messageController.text.trim();
+    _messageController.clear();
 
-      if (response.statusCode == 200) {
-        _messageController.clear();
-        await _fetchMessages();
-      }
+    try {
+      await _messageService.sendMessage(
+        senderId: userId!,
+        receiverId: 1, // Admin ID
+        content: content,
+        isAdmin: isAdmin,
+        senderName: userName ?? 'Unknown',
+      );
+      await _fetchMessages();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error sending message: $e')));
+      _showErrorSnackBar('Error sending message: $e');
     }
+  }
+
+  Future<void> _deleteMessage(Message message) async {
+    try {
+      await _messageService.deleteMessage(message.messageId);
+      await _fetchMessages();
+    } catch (e) {
+      _showErrorSnackBar('Error deleting message: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -98,79 +141,140 @@ class _MessagesPageState extends State<MessagesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: Row(
+          children: [
+            const Text('Chat with Admin'),
+            if (_unreadCount > 0)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _unreadCount.toString(),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+          ],
+        ),
         backgroundColor: Colors.purple[100],
       ),
       body: Column(
         children: [
+          if (_isLoading) const LinearProgressIndicator(),
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(8),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final isMyMessage = message.senderId == userId;
+            child:
+                messages.isEmpty
+                    ? Center(
+                      child: Text(
+                        'No messages yet.\nStart a conversation with admin!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                      ),
+                    )
+                    : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(8),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        final isMyMessage = message.senderId == userId;
 
-                return Align(
-                  alignment:
-                      isMyMessage
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(
-                      vertical: 4,
-                      horizontal: 8,
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color:
-                          isMyMessage ? Colors.purple[100] : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment:
-                          isMyMessage
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          message.senderName ?? 'Unknown',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                isMyMessage
-                                    ? Colors.purple[900]
-                                    : Colors.black87,
+                        return Dismissible(
+                          key: Key(message.messageId.toString()),
+                          direction:
+                              isMyMessage
+                                  ? DismissDirection.endToStart
+                                  : DismissDirection.none,
+                          onDismissed: (_) => _deleteMessage(message),
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          message.content,
-                          style: TextStyle(
-                            color:
+                          child: Align(
+                            alignment:
                                 isMyMessage
-                                    ? Colors.purple[900]
-                                    : Colors.black87,
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                vertical: 4,
+                                horizontal: 8,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color:
+                                    isMyMessage
+                                        ? Colors.purple[100]
+                                        : Colors.grey[300],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    isMyMessage
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    message.senderName ?? 'Unknown',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isMyMessage
+                                              ? Colors.purple[900]
+                                              : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    message.content,
+                                    style: TextStyle(
+                                      color:
+                                          isMyMessage
+                                              ? Colors.purple[900]
+                                              : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color:
+                                              isMyMessage
+                                                  ? Colors.purple[900]
+                                                  : Colors.black54,
+                                        ),
+                                      ),
+                                      if (isMyMessage) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          message.isRead
+                                              ? Icons.done_all
+                                              : Icons.done,
+                                          size: 16,
+                                          color: Colors.purple[900],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color:
-                                isMyMessage
-                                    ? Colors.purple[900]
-                                    : Colors.black54,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
-            ),
           ),
           Container(
             padding: const EdgeInsets.all(8),
@@ -202,6 +306,7 @@ class _MessagesPageState extends State<MessagesPage> {
                         vertical: 8,
                       ),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -216,12 +321,5 @@ class _MessagesPageState extends State<MessagesPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 }

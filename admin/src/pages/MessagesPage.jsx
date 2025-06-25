@@ -1,128 +1,271 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  List,
+  ListItem,
+  Paper,
+  IconButton,
+  CircularProgress,
+  Alert,
+  Snackbar
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { styled } from '@mui/material/styles';
 import axios from 'axios';
-import './MessagesPage.css';
 
-function MessagesPage() {
+// Styled components
+const ChatContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  height: 'calc(100vh - 64px)',
+  backgroundColor: theme.palette.background.default
+}));
+
+const UsersList = styled(Box)(({ theme }) => ({
+  width: 300,
+  borderRight: `1px solid ${theme.palette.divider}`,
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.paper
+}));
+
+const ChatArea = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.default
+}));
+
+const MessageBubble = styled(Paper)(({ theme, isAdmin }) => ({
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(1),
+  maxWidth: '70%',
+  marginLeft: isAdmin ? 'auto' : 0,
+  backgroundColor: isAdmin ? theme.palette.primary.light : theme.palette.grey[100],
+  color: isAdmin ? theme.palette.primary.contrastText : theme.palette.text.primary
+}));
+
+const MessagesPage = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
-  const messagesEndRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Fetch messages and users
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [messagesRes, usersRes] = await Promise.all([
+        axios.get('http://localhost:3000/admin/messages'),
+        axios.get('http://localhost:3000/users')
+      ]);
+      setMessages(messagesRes.data);
+      setUsers(usersRes.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch data. Please try again.');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 5000); // Poll for new messages every 5 seconds
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
+  // Group messages by user
+  const messagesByUser = useMemo(() => {
+    return messages.reduce((acc, message) => {
+      const userId = message.sender_id === 1 ? message.receiver_id : message.sender_id;
+      if (!acc[userId]) {
+        acc[userId] = [];
+      }
+      acc[userId].push(message);
+      return acc;
+    }, {});
   }, [messages]);
 
-  const fetchMessages = async () => {
-    try {
-      const response = await axios.get('http://localhost:3000/admin/messages');
-      setMessages(response.data);
-
-      // Extract unique users from messages
-      const uniqueUsers = [
-        ...new Map(
-          response.data
-            .filter((msg) => !msg.is_admin)
-            .map((msg) => [msg.sender_id, { id: msg.sender_id, name: msg.sender_name }])
-        ).values(),
-      ];
-      setUsers(uniqueUsers);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
+  // Get user name by ID
+  const getUserName = (userId) => {
+    const user = users.find(u => u.user_id === userId);
+    return user ? user.name : 'Unknown User';
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
+  // Send message
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedUser) return;
 
     try {
-      await axios.post('http://localhost:3000/messages/send', {
-        sender_id: 1, // Admin ID
-        receiver_id: selectedUserId,
-        content: newMessage,
-        is_admin: true,
-        sender_name: 'Admin',
+      const response = await axios.post('http://localhost:3000/admin/messages/send', {
+        receiver_id: selectedUser,
+        content: newMessage.trim()
       });
 
+      setMessages(prev => [...prev, response.data]);
       setNewMessage('');
-      fetchMessages();
-    } catch (error) {
-      console.error('Error sending message:', error);
+      setSnackbar({
+        open: true,
+        message: 'Message sent successfully',
+        severity: 'success'
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to send message',
+        severity: 'error'
+      });
+      console.error('Error sending message:', err);
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+  // Delete message
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await axios.delete(`http://localhost:3000/messages/${messageId}`);
+      setMessages(prev => prev.filter(msg => msg.message_id !== messageId));
+      setSnackbar({
+        open: true,
+        message: 'Message deleted successfully',
+        severity: 'success'
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete message',
+        severity: 'error'
+      });
+      console.error('Error deleting message:', err);
+    }
   };
 
+  // Mark messages as read
+  const markMessagesAsRead = async (userId) => {
+    try {
+      await axios.post('http://localhost:3000/messages/mark-read', {
+        user_id: 1,
+        sender_id: userId
+      });
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
   return (
-    <div className="messages-container">
-      <div className="users-list">
-        <h2>Users</h2>
-        {users.map((user) => (
-          <div
-            key={user.id}
-            className={`user-item ${selectedUserId === user.id ? 'selected' : ''}`}
-            onClick={() => setSelectedUserId(user.id)}
-          >
-            {user.name || `User ${user.id}`}
-          </div>
-        ))}
-      </div>
+    <ChatContainer>
+      <UsersList>
+        <Typography variant="h6" sx={{ mb: 2 }}>Users</Typography>
+        <List>
+          {users.map(user => (
+            <ListItem
+              key={user.user_id}
+              button
+              selected={selectedUser === user.user_id}
+              onClick={() => {
+                setSelectedUser(user.user_id);
+                markMessagesAsRead(user.user_id);
+              }}
+            >
+              <Typography>{user.name}</Typography>
+            </ListItem>
+          ))}
+        </List>
+      </UsersList>
 
-      <div className="chat-container">
-        <div className="messages-list">
-          {messages
-            .filter(
-              (msg) =>
-                !selectedUserId ||
-                msg.sender_id === selectedUserId ||
-                msg.receiver_id === selectedUserId
-            )
-            .map((message, index) => (
-              <div
-                key={index}
-                className={`message ${message.is_admin ? 'admin' : 'user'}`}
+      <ChatArea>
+        {selectedUser ? (
+          <>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Chat with {getUserName(selectedUser)}
+            </Typography>
+            <Box sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
+              {messagesByUser[selectedUser]?.map(message => (
+                <MessageBubble
+                  key={message.message_id}
+                  isAdmin={message.sender_id === 1}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body1">{message.content}</Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteMessage(message.message_id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(message.timestamp).toLocaleString()}
+                  </Typography>
+                </MessageBubble>
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                fullWidth
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                variant="outlined"
+                size="small"
+              />
+              <Button
+                variant="contained"
+                endIcon={<SendIcon />}
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim()}
               >
-                <div className="message-content">
-                  <strong>
-                    {message.sender_name ||
-                      (message.is_admin
-                        ? 'Admin'
-                        : `User ${message.sender_id}`)}
-                  </strong>
-                  <p>{message.content}</p>
-                  <small>{formatTimestamp(message.timestamp)}</small>
-                </div>
-              </div>
-            ))}
-          <div ref={messagesEndRef} />
-        </div>
+                Send
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
+            Select a user to start chatting
+          </Typography>
+        )}
+      </ChatArea>
 
-        <form onSubmit={handleSendMessage} className="message-input">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-          />
-          <button type="submit">Send</button>
-        </form>
-      </div>
-    </div>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </ChatContainer>
   );
-}
+};
 
 export default MessagesPage;

@@ -6,6 +6,7 @@ class Message {
   final DateTime timestamp;
   final bool isAdmin;
   final String? senderName;
+  final bool isRead;
 
   Message({
     required this.messageId,
@@ -15,6 +16,7 @@ class Message {
     required this.timestamp,
     required this.isAdmin,
     this.senderName,
+    this.isRead = false,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class Message {
       timestamp: DateTime.parse(json['timestamp']),
       isAdmin: json['is_admin'] == 1,
       senderName: json['sender_name'],
+      isRead: json['is_read'] == 1,
     );
   }
 
@@ -38,6 +41,29 @@ class Message {
       'timestamp': timestamp.toIso8601String(),
       'is_admin': isAdmin ? 1 : 0,
       'sender_name': senderName,
+      'is_read': isRead ? 1 : 0,
     };
+  }
+
+  Message copyWith({
+    int? messageId,
+    int? senderId,
+    int? receiverId,
+    String? content,
+    DateTime? timestamp,
+    bool? isAdmin,
+    String? senderName,
+    bool? isRead,
+  }) {
+    return Message(
+      messageId: messageId ?? this.messageId,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+      isAdmin: isAdmin ?? this.isAdmin,
+      senderName: senderName ?? this.senderName,
+      isRead: isRead ?? this.isRead,
+    );
   }
 }
