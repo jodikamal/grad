@@ -18,35 +18,70 @@ import { styled } from '@mui/material/styles';
 import axios from 'axios';
 
 // Styled components
+
+// Styled components
 const ChatContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   height: 'calc(100vh - 64px)',
-  backgroundColor: theme.palette.background.default
+  backgroundColor: '#f4f5fa',
+  fontFamily: 'Segoe UI, sans-serif',
 }));
 
 const UsersList = styled(Box)(({ theme }) => ({
   width: 300,
   borderRight: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(2),
-  backgroundColor: theme.palette.background.paper
+  backgroundColor: '#ffffff',
+  boxShadow: '2px 0 5px rgba(0,0,0,0.03)',
 }));
 
 const ChatArea = styled(Box)(({ theme }) => ({
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-  padding: theme.spacing(2),
-  backgroundColor: theme.palette.background.default
+  backgroundColor: '#fcfcfc',
+  borderLeft: `1px solid ${theme.palette.divider}`,
 }));
 
 const MessageBubble = styled(Paper)(({ theme, isAdmin }) => ({
-  padding: theme.spacing(2),
-  marginBottom: theme.spacing(1),
-  maxWidth: '70%',
+  padding: theme.spacing(1.5),
+  marginBottom: theme.spacing(2),
+  maxWidth: '65%',
+  borderRadius: 12,
   marginLeft: isAdmin ? 'auto' : 0,
-  backgroundColor: isAdmin ? theme.palette.primary.light : theme.palette.grey[100],
-  color: isAdmin ? theme.palette.primary.contrastText : theme.palette.text.primary
+  marginRight: isAdmin ? 0 : 'auto',
+  backgroundColor: isAdmin ? '#e3e0ff' : '#f0f0f0',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  color: '#333',
 }));
+
+const MessageHeader = styled(Typography)(({ theme }) => ({
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  marginBottom: 4,
+  color: theme.palette.primary.main,
+}));
+
+const MessageTimestamp = styled(Typography)(({ theme }) => ({
+  fontSize: '0.7rem',
+  color: '#888',
+  marginTop: 6,
+}));
+
+const MessageInputContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  padding: theme.spacing(2),
+  borderTop: `1px solid ${theme.palette.divider}`,
+  backgroundColor: '#ffffff',
+}));
+
+const ChatHeader = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  backgroundColor: '#ffffff',
+  boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.03)',
+}));
+
 
 const MessagesPage = () => {
   const [messages, setMessages] = useState([]);
@@ -85,7 +120,7 @@ const MessagesPage = () => {
   // Group messages by user
   const messagesByUser = useMemo(() => {
     return messages.reduce((acc, message) => {
-      const userId = message.sender_id === 1 ? message.receiver_id : message.sender_id;
+      const userId = message.sender_id === 16 ? message.receiver_id : message.sender_id;
       if (!acc[userId]) {
         acc[userId] = [];
       }
@@ -200,59 +235,67 @@ const MessagesPage = () => {
         </List>
       </UsersList>
 
-      <ChatArea>
-        {selectedUser ? (
-          <>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Chat with {getUserName(selectedUser)}
-            </Typography>
-            <Box sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
-              {messagesByUser[selectedUser]?.map(message => (
-                <MessageBubble
-                  key={message.message_id}
-                  isAdmin={message.sender_id === 1}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body1">{message.content}</Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteMessage(message.message_id)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(message.timestamp).toLocaleString()}
-                  </Typography>
-                </MessageBubble>
-              ))}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                fullWidth
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                variant="outlined"
+<ChatArea>
+  {selectedUser ? (
+    <>
+      <ChatHeader>
+        <Typography variant="h6">
+          Chat with {getUserName(selectedUser)}
+        </Typography>
+      </ChatHeader>
+
+      <Box sx={{ flex: 1, overflowY: 'auto', padding: 2 }}>
+        {messagesByUser[selectedUser]?.map(message => (
+          <MessageBubble key={message.message_id} isAdmin={message.sender_id === 16}>
+            <MessageHeader>
+              {message.sender_id === 16 ? 'Admin' : message.sender_name}
+            </MessageHeader>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body1">{message.content}</Typography>
+              <IconButton
                 size="small"
-              />
-              <Button
-                variant="contained"
-                endIcon={<SendIcon />}
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
+                onClick={() => handleDeleteMessage(message.message_id)}
               >
-                Send
-              </Button>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
             </Box>
-          </>
-        ) : (
-          <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
-            Select a user to start chatting
-          </Typography>
-        )}
-      </ChatArea>
+            <MessageTimestamp>
+              {new Date(message.timestamp).toLocaleString()}
+            </MessageTimestamp>
+          </MessageBubble>
+        ))}
+      </Box>
+
+      <MessageInputContainer>
+        <TextField
+          fullWidth
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Type a message..."
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          variant="outlined"
+          size="small"
+        />
+        <Button
+          variant="contained"
+          endIcon={<SendIcon />}
+          onClick={handleSendMessage}
+          disabled={!newMessage.trim()}
+          sx={{ marginLeft: 1 }}
+        >
+          Send
+        </Button>
+      </MessageInputContainer>
+    </>
+  ) : (
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Typography variant="body1" color="text.secondary">
+        Select a user to start chatting
+      </Typography>
+    </Box>
+  )}
+</ChatArea>
+
 
       <Snackbar
         open={snackbar.open}

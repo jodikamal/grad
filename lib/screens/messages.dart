@@ -28,7 +28,6 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     _loadUserData();
-    // Set up periodic message fetching
     _timer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _fetchMessages(),
@@ -45,12 +44,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    int? userId = prefs.getInt('userId');
     setState(() {
       userId = prefs.getInt('userId');
       isAdmin = prefs.getBool('isAdmin') ?? false;
       userName = prefs.getString('userName');
     });
+
     if (userId != null) {
       await _fetchMessages();
       await _updateUnreadCount();
@@ -64,25 +63,20 @@ class _MessagesPageState extends State<MessagesPage> {
       setState(() {
         _unreadCount = count;
       });
-    } catch (e) {
-      // Handle error silently
-    }
+    } catch (_) {}
   }
 
   Future<void> _fetchMessages() async {
     if (userId == null) return;
-
     try {
       setState(() => _isLoading = true);
       final fetchedMessages = await _messageService.fetchMessages(userId!);
       setState(() {
-        messages = fetchedMessages;
-        messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        messages =
+            fetchedMessages..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       });
       _scrollToBottom();
       await _updateUnreadCount();
-    } catch (e) {
-      _showErrorSnackBar('Error loading messages: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -92,19 +86,28 @@ class _MessagesPageState extends State<MessagesPage> {
     if (userId == null || _messageController.text.trim().isEmpty) return;
 
     final content = _messageController.text.trim();
+    final currentUserName = userName ?? 'You';
     _messageController.clear();
 
     try {
-      await _messageService.sendMessage(
+      setState(() => _isLoading = true);
+      final sentMessage = await _messageService.sendMessage(
         senderId: userId!,
-        receiverId: 1, // Admin ID
+        receiverId: 1,
         content: content,
         isAdmin: isAdmin,
-        senderName: userName ?? 'Unknown',
+        senderName: currentUserName,
       );
+      setState(() {
+        messages.add(sentMessage);
+        messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      });
+      _scrollToBottom();
       await _fetchMessages();
-    } catch (e) {
-      _showErrorSnackBar('Error sending message: $e');
+    } catch (_) {
+      _messageController.text = content;
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -112,28 +115,18 @@ class _MessagesPageState extends State<MessagesPage> {
     try {
       await _messageService.deleteMessage(message.messageId);
       await _fetchMessages();
-    } catch (e) {
-      _showErrorSnackBar('Error deleting message: $e');
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    } catch (_) {}
   }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
     }
   }
 
@@ -143,7 +136,9 @@ class _MessagesPageState extends State<MessagesPage> {
       appBar: AppBar(
         title: Row(
           children: [
-            const Text('Chat with Admin'),
+            const Icon(Icons.message, size: 20, color: Colors.deepPurple),
+            const SizedBox(width: 8),
+            const Text('Messages'),
             if (_unreadCount > 0)
               Container(
                 margin: const EdgeInsets.only(left: 8),
@@ -154,7 +149,7 @@ class _MessagesPageState extends State<MessagesPage> {
                 ),
                 child: Text(
                   _unreadCount.toString(),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
           ],
@@ -169,7 +164,9 @@ class _MessagesPageState extends State<MessagesPage> {
                 messages.isEmpty
                     ? Center(
                       child: Text(
-                        'No messages yet.\nStart a conversation with admin!',
+                        userId == null
+                            ? 'Please log in to start messaging'
+                            : 'No messages yet.\nStart a conversation with admin!',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey[600], fontSize: 16),
                       ),
@@ -223,7 +220,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                         : CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    message.senderName ?? 'Unknown',
+                                    isMyMessage ? 'You' : 'Admin',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color:
@@ -293,14 +290,19 @@ class _MessagesPageState extends State<MessagesPage> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    enabled: userId != null,
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
+                      hintText:
+                          userId != null
+                              ? 'Type a message...'
+                              : 'Please log in to send messages',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor:
+                          userId != null ? Colors.grey[100] : Colors.grey[300],
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
@@ -311,9 +313,9 @@ class _MessagesPageState extends State<MessagesPage> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: _sendMessage,
+                  onPressed: userId != null ? _sendMessage : null,
                   icon: const Icon(Icons.send),
-                  color: Colors.purple,
+                  color: userId != null ? Colors.purple : Colors.grey,
                 ),
               ],
             ),
